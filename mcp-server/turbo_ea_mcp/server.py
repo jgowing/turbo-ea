@@ -12,7 +12,6 @@ import textwrap
 
 from mcp.server.fastmcp import FastMCP
 from starlette.applications import Starlette
-from starlette.middleware import Middleware
 from starlette.routing import Route
 
 from turbo_ea_mcp import oauth
@@ -761,9 +760,6 @@ def create_app() -> Starlette:
         Route("/oauth/register", oauth.register_client, methods=["POST"]),
     ]
 
-    # Mount the MCP server's ASGI app under /mcp
-    mcp_app = mcp.streamable_http_app()
-
     async def health(request):
         from starlette.responses import JSONResponse
 
@@ -771,11 +767,14 @@ def create_app() -> Starlette:
 
     oauth_routes.append(Route("/health", health, methods=["GET"]))
 
-    app = Starlette(
-        routes=oauth_routes,
-        middleware=[Middleware(AuthMiddleware)],
-    )
-    app.mount("/mcp", mcp_app)
+    # streamable_http_app() returns a Starlette app with the MCP protocol route
+    # at /mcp by default. Attach OAuth + well-known routes to that same app so
+    # the upstream serves both at the right paths without an extra Starlette
+    # mount (a mount would push the protocol to /mcp/mcp and trigger a 307
+    # redirect for clients hitting /mcp without a trailing slash).
+    app = mcp.streamable_http_app()
+    app.router.routes.extend(oauth_routes)
+    app.add_middleware(AuthMiddleware)
 
     return app
 
