@@ -9,14 +9,21 @@ import argparse
 import json
 import logging
 import textwrap
+from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.routing import Route
 
 from turbo_ea_mcp import oauth
 from turbo_ea_mcp.api_client import TurboEAClient
-from turbo_ea_mcp.config import APP_VERSION, MCP_PORT
+from turbo_ea_mcp.config import (
+    APP_VERSION,
+    MCP_PORT,
+    MCP_PUBLIC_URL,
+    TURBO_EA_PUBLIC_URL,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
@@ -24,6 +31,32 @@ logging.basicConfig(
 logger = logging.getLogger("turbo_ea_mcp")
 
 # ── MCP Server ──────────────────────────────────────────────────────────────
+
+
+def _build_transport_security() -> TransportSecuritySettings:
+    """Allow the configured public hostnames through DNS-rebinding protection.
+
+    FastMCP defaults block any Host header it didn't expect, which makes the
+    server return 421 when fronted by a reverse proxy on a real domain. Add
+    the hostnames derived from MCP_PUBLIC_URL and TURBO_EA_PUBLIC_URL so the
+    public deployment passes the check; localhost stays allowed for stdio
+    tests and local development.
+    """
+    hosts: set[str] = {"localhost", "127.0.0.1"}
+    origins: set[str] = set()
+    for url in (MCP_PUBLIC_URL, TURBO_EA_PUBLIC_URL):
+        parsed = urlparse(url)
+        if parsed.hostname:
+            hosts.add(parsed.hostname)
+        if parsed.netloc:
+            hosts.add(parsed.netloc)
+        if parsed.scheme and parsed.netloc:
+            origins.add(f"{parsed.scheme}://{parsed.netloc}")
+    return TransportSecuritySettings(
+        allowed_hosts=sorted(hosts),
+        allowed_origins=sorted(origins),
+    )
+
 
 mcp = FastMCP(
     "Turbo EA",
@@ -33,6 +66,7 @@ mcp = FastMCP(
         All data access respects the authenticated user's permissions.
         Data is read-only — you cannot create or modify cards.
     """),
+    transport_security=_build_transport_security(),
 )
 
 
