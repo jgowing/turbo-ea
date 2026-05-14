@@ -841,6 +841,13 @@ def create_app() -> Starlette:
             oauth.authorization_server_metadata,
             methods=["GET"],
         ),
+        # OIDC-style discovery alias — some MCP connectors probe this path
+        # instead of (or before) the OAuth 2.1 / RFC 8414 well-known.
+        Route(
+            "/.well-known/openid-configuration",
+            oauth.authorization_server_metadata,
+            methods=["GET"],
+        ),
         Route("/oauth/authorize", oauth.authorize, methods=["GET"]),
         Route("/oauth/callback", oauth.sso_callback, methods=["GET"]),
         Route("/oauth/token", oauth.token_endpoint, methods=["POST"]),
