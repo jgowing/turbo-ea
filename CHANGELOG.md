@@ -5,6 +5,13 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.11.5] - 2026-05-14
+
+First expansion of the MCP server toolset since its creation. The server now exposes 26 read-only tools (up from 8), covering the major backend modules that have shipped over the last two weeks.
+
+### Added
+- **18 new MCP tools across five clusters.** GRC: `list_risks`, `get_risk`, `get_risk_metrics`, `get_card_risks`, `list_cve_findings`, `list_compliance_findings`, `get_security_overview`. Governance & Delivery: `list_principles`, `list_adrs`, `get_adr`, `list_soaws`. Reports: `get_portfolio_report`, `get_cost_treemap`, `get_capability_heatmap`, `get_data_quality_report`. Card context: `get_card_stakeholders`, `get_card_comments`, `get_card_documents`. Every tool is a read-only `GET` shim — the user's JWT is passed straight through to the backend so RBAC is enforced server-side without any per-tool permission checks on the MCP side. The Risk Register filters match the existing UI sidebar; a `_compact()` helper drops `None` / empty filters so URLs stay clean. 20 new unit tests in `mcp-server/tests/test_server.py` (mocked `TurboEAClient.get` + path/params assertions) round out the coverage. Tool reference in `docs/admin/mcp.md` (+ 7 locales) refreshed.
+
 ## [1.11.4] - 2026-05-14
 
 Small quality-of-life addition for the Card Detail page.

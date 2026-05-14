@@ -19,7 +19,9 @@ from turbo_ea_mcp import oauth
 from turbo_ea_mcp.api_client import TurboEAClient
 from turbo_ea_mcp.config import APP_VERSION, MCP_PORT
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
+)
 logger = logging.getLogger("turbo_ea_mcp")
 
 # ── MCP Server ──────────────────────────────────────────────────────────────
@@ -41,6 +43,11 @@ mcp = FastMCP(
 def _fmt(data: dict | list) -> str:
     """Format API response as readable JSON."""
     return json.dumps(data, indent=2, default=str)
+
+
+def _compact(params: dict) -> dict:
+    """Drop ``None`` and empty-string values so they don't clutter the URL."""
+    return {k: v for k, v in params.items() if v not in (None, "")}
 
 
 # ── Tools ───────────────────────────────────────────────────────────────────
@@ -180,6 +187,431 @@ async def get_landscape(type_key: str, group_by: str) -> str:
         "/reports/landscape",
         params={"type_key": type_key, "group_by": group_by},
     )
+    return _fmt(data)
+
+
+# ── GRC — Risks ─────────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def list_risks(
+    status: str = "",
+    category: str = "",
+    level: str = "",
+    owner_id: str = "",
+    card_id: str = "",
+    source_type: str = "",
+    search: str = "",
+    overdue: bool = False,
+    page: int = 1,
+    page_size: int = 50,
+) -> str:
+    """Paginated, filterable EA Risk Register listing (TOGAF Phase G).
+
+    Args:
+        status: Lifecycle state — 'identified', 'analysed', 'mitigation_planned',
+            'in_progress', 'mitigated', 'monitoring', 'accepted', 'closed'.
+        category: 'security', 'compliance', 'operational', 'technology',
+            'financial', 'reputational', 'strategic'.
+        level: Residual (or initial when residual is empty) risk level —
+            'low', 'medium', 'high', 'critical'.
+        owner_id: Filter to risks owned by a specific user UUID.
+        card_id: Filter to risks linked to a specific card UUID.
+        source_type: How the risk was raised — 'manual', 'security_cve',
+            'security_compliance'.
+        search: Free-text search across title, description and reference.
+        overdue: When true, only return risks past their target resolution
+            date that aren't already closed/accepted.
+        page: Page number (default 1).
+        page_size: Results per page (default 50, max 1000).
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/risks",
+        params=_compact(
+            {
+                "status": status,
+                "category": category,
+                "level": level,
+                "owner_id": owner_id,
+                "card_id": card_id,
+                "source_type": source_type,
+                "search": search,
+                "overdue": "true" if overdue else None,
+                "page": page,
+                "page_size": min(page_size, 1000),
+            }
+        ),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_risk(risk_id: str) -> str:
+    """Get full detail of a single risk including linked cards and audit data.
+
+    Args:
+        risk_id: The risk's UUID (or its reference number like 'R-000123' —
+            the backend resolves both).
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/risks/{risk_id}")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_risk_metrics() -> str:
+    """KPIs for the Risk Register: counts by status / category / level plus
+    the 4×4 initial and residual probability × impact matrices."""
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get("/risks/metrics")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_card_risks(card_id: str) -> str:
+    """List every risk currently linked to a specific card (M:N).
+
+    Args:
+        card_id: The UUID of the card.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/cards/{card_id}/risks")
+    return _fmt(data)
+
+
+# ── GRC — Security & Compliance findings ───────────────────────────────────
+
+
+@mcp.tool()
+async def list_cve_findings(
+    severity: str = "",
+    probability: str = "",
+    status: str = "",
+    card_id: str = "",
+    card_type: str = "",
+    page: int = 1,
+    page_size: int = 50,
+) -> str:
+    """Paginated CVE findings from the TurboLens Security & Compliance scan.
+
+    Args:
+        severity: 'critical', 'high', 'medium', 'low'.
+        probability: AI-rated exploitation likelihood — 'very_high', 'high',
+            'medium', 'low', 'very_low'.
+        status: Lifecycle state — 'open', 'acknowledged', 'in_progress',
+            'mitigated', 'accepted'.
+        card_id: Filter to a single affected card UUID.
+        card_type: 'Application' or 'ITComponent'.
+        page: Page number (default 1).
+        page_size: Results per page (default 50, max 200).
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/turbolens/security/findings",
+        params=_compact(
+            {
+                "severity": severity,
+                "probability": probability,
+                "status": status,
+                "card_id": card_id,
+                "card_type": card_type,
+                "page": page,
+                "page_size": min(page_size, 200),
+            }
+        ),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def list_compliance_findings(
+    regulation: str = "",
+    status: str = "",
+    include_auto_resolved: bool = False,
+) -> str:
+    """Compliance findings bundled by regulation (EU AI Act, GDPR, NIS2,
+    DORA, SOC 2, ISO 27001, …).
+
+    Args:
+        regulation: Filter to a single regulation key (e.g. 'gdpr', 'eu_ai_act').
+        status: AI verdict — 'compliant', 'partial', 'non_compliant',
+            'not_applicable', 'review_needed'.
+        include_auto_resolved: Include findings a later re-scan no longer
+            reports (hidden by default for noise reduction).
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/turbolens/security/compliance",
+        params=_compact(
+            {
+                "regulation": regulation,
+                "status": status,
+                "include_auto_resolved": "true" if include_auto_resolved else None,
+            }
+        ),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_security_overview() -> str:
+    """KPIs + risk matrix + top critical findings for the Security &
+    Compliance dashboard (CVE side + compliance side)."""
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get("/turbolens/security/overview")
+    return _fmt(data)
+
+
+# ── Governance & Delivery ───────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def list_principles() -> str:
+    """List the EA principles published in the metamodel (statement,
+    rationale, implications), ordered by sort order."""
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get("/metamodel/principles")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def list_adrs(
+    initiative_id: str = "",
+    card_id: str = "",
+    status: str = "",
+    search: str = "",
+) -> str:
+    """List Architecture Decision Records (ADRs).
+
+    Args:
+        initiative_id: Filter to ADRs linked to a specific Initiative UUID.
+        card_id: Filter to ADRs linked to a specific card UUID.
+        status: 'draft', 'in_review', or 'signed'.
+        search: Free-text search across title, reference and section content.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/adr",
+        params=_compact(
+            {
+                "initiative_id": initiative_id,
+                "card_id": card_id,
+                "status": status,
+                "search": search,
+            }
+        ),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_adr(adr_id: str) -> str:
+    """Get full detail of a single ADR including all section content,
+    linked cards, related decisions, and signature trail.
+
+    Args:
+        adr_id: The ADR's UUID.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/adr/{adr_id}")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def list_soaws(initiative_id: str = "") -> str:
+    """List Statements of Architecture Work (SoAW).
+
+    Args:
+        initiative_id: Filter to SoAWs linked to a specific Initiative UUID.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/soaw",
+        params=_compact({"initiative_id": initiative_id}),
+    )
+    return _fmt(data)
+
+
+# ── Reports ────────────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_portfolio_report(
+    type: str = "Application",
+    x_axis: str = "functionalFit",
+    y_axis: str = "technicalFit",
+    size_field: str = "costTotalAnnual",
+    color_field: str = "businessCriticality",
+) -> str:
+    """Portfolio bubble-chart data for a card type. Defaults plot the
+    Application portfolio with functional fit × technical fit, sized by
+    annual cost, coloured by business criticality.
+
+    Args:
+        type: Card type to report on (default 'Application').
+        x_axis: Field key for the x-axis.
+        y_axis: Field key for the y-axis.
+        size_field: Field key driving bubble size.
+        color_field: Field key driving bubble colour.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/reports/portfolio",
+        params={
+            "type": type,
+            "x_axis": x_axis,
+            "y_axis": y_axis,
+            "size_field": size_field,
+            "color_field": color_field,
+        },
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_cost_treemap(
+    type: str = "Application",
+    cost_field: str = "costTotalAnnual",
+    group_by: str = "",
+) -> str:
+    """Treemap of card cost grouped optionally by a related card type.
+
+    Args:
+        type: Card type to aggregate (default 'Application').
+        cost_field: Cost field key on that type (default 'costTotalAnnual').
+        group_by: Optional related card type key to group spend by
+            (e.g. 'BusinessCapability', 'Organization').
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/reports/cost-treemap",
+        params=_compact(
+            {
+                "type": type,
+                "cost_field": cost_field,
+                "group_by": group_by,
+            }
+        ),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_capability_heatmap(metric: str = "app_count") -> str:
+    """Hierarchical business-capability heatmap.
+
+    Args:
+        metric: What to colour by — 'app_count', 'cost', 'data_quality'.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(
+        "/reports/capability-heatmap",
+        params=_compact({"metric": metric}),
+    )
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_data_quality_report() -> str:
+    """Per-card-type data quality / completeness breakdown — surfaces
+    which inventory rows have missing required fields."""
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get("/reports/data-quality")
+    return _fmt(data)
+
+
+# ── Card context ───────────────────────────────────────────────────────────
+
+
+@mcp.tool()
+async def get_card_stakeholders(card_id: str) -> str:
+    """List the stakeholders (users + roles) assigned to a card.
+
+    Args:
+        card_id: The UUID of the card.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/cards/{card_id}/stakeholders")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_card_comments(card_id: str) -> str:
+    """List the threaded comments on a card, newest first.
+
+    Args:
+        card_id: The UUID of the card.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/cards/{card_id}/comments")
+    return _fmt(data)
+
+
+@mcp.tool()
+async def get_card_documents(card_id: str) -> str:
+    """List the document links attached to a card (URLs with categorisation,
+    not file uploads).
+
+    Args:
+        card_id: The UUID of the card.
+    """
+    token = _get_current_token()
+    if not token:
+        return "Error: Not authenticated. Please reconnect."
+    client = TurboEAClient(token)
+    data = await client.get(f"/cards/{card_id}/documents")
     return _fmt(data)
 
 
@@ -379,9 +811,7 @@ def run_stdio() -> None:
     email = os.environ.get("TURBO_EA_EMAIL") or os.environ.get("TURBO_EA_USERNAME", "")
     password = os.environ.get("TURBO_EA_PASSWORD", "")
     if not email or not password:
-        logger.error(
-            "TURBO_EA_EMAIL and TURBO_EA_PASSWORD must be set for stdio mode"
-        )
+        logger.error("TURBO_EA_EMAIL and TURBO_EA_PASSWORD must be set for stdio mode")
         raise SystemExit(1)
 
     from turbo_ea_mcp.api_client import login
@@ -434,7 +864,9 @@ def main():
 
         logger.info(
             "Starting Turbo EA MCP Server v%s on %s:%d",
-            APP_VERSION, args.host, args.port,
+            APP_VERSION,
+            args.host,
+            args.port,
         )
         uvicorn.run(create_app(), host=args.host, port=args.port, log_level="info")
 
