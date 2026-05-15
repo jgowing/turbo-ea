@@ -146,7 +146,12 @@ export function exportTaskHistory(task: MitigationTask, riskReference: string): 
     );
     const ws = buildOccurrenceSheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "History");
+    // Sheet name "History" is reserved by Excel (used internally for
+    // change-tracking metadata) and SheetJS will refuse to append it,
+    // so we use the user-facing "Cycles" label instead. Matches the
+    // ``risks.tasks.history.cycleLabel`` translation we already use in
+    // the inline history list.
+    XLSX.utils.book_append_sheet(wb, ws, "Cycles");
     const ref = task.reference || task.id;
     XLSX.writeFile(wb, `mitigation-task-${ref}-${timestamp()}.xlsx`);
   } catch (err) {
