@@ -441,63 +441,75 @@ export default function UsersAdmin() {
   const columnDefs = useMemo<ColDef<User>[]>(
     () => [
       {
-        colId: "actions",
-        headerName: "",
-        width: 140,
+        field: "display_name",
+        headerName: t("users.columns.name"),
+        minWidth: 280,
+        flex: 1,
         pinned: "left",
-        sortable: false,
-        filter: false,
-        resizable: false,
-        cellRenderer: (p: { data?: User }) => {
+        hide: false, // always shown (locked)
+        sortable: true,
+        cellRenderer: (p: { data?: User; value: string }) => {
           const u = p.data;
           if (!u) return null;
           return (
             <Box
-              sx={{ display: "flex", gap: 0.25, alignItems: "center", height: "100%" }}
-              onClick={(e) => e.stopPropagation()}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+                height: "100%",
+                width: "100%",
+              }}
             >
-              <Tooltip title={t("users.editTooltip")}>
-                <IconButton size="small" onClick={() => openEdit(u)}>
-                  <MaterialSymbol icon="edit" size={20} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip
-                title={u.is_active ? t("users.deactivateTooltip") : t("users.activateTooltip")}
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{ flex: 1, minWidth: 0 }}
+                title={p.value}
               >
-                <IconButton
-                  size="small"
-                  onClick={() => toggleActive(u)}
-                  color={u.is_active ? "warning" : "success"}
-                >
-                  <MaterialSymbol
-                    icon={u.is_active ? "person_off" : "person"}
-                    size={20}
-                  />
-                </IconButton>
-              </Tooltip>
-              {!u.is_active && (
-                <Tooltip title={t("users.deleteTooltip")}>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDelete(u)}
-                  >
-                    <MaterialSymbol icon="delete" size={20} />
+                {p.value}
+              </Typography>
+              <Box
+                sx={{ display: "flex", gap: 0.25, alignItems: "center", flexShrink: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Tooltip title={t("users.editTooltip")}>
+                  <IconButton size="small" onClick={() => openEdit(u)}>
+                    <MaterialSymbol icon="edit" size={18} />
                   </IconButton>
                 </Tooltip>
-              )}
+                <Tooltip
+                  title={
+                    u.is_active ? t("users.deactivateTooltip") : t("users.activateTooltip")
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => toggleActive(u)}
+                    color={u.is_active ? "warning" : "success"}
+                  >
+                    <MaterialSymbol
+                      icon={u.is_active ? "person_off" : "person"}
+                      size={18}
+                    />
+                  </IconButton>
+                </Tooltip>
+                {!u.is_active && (
+                  <Tooltip title={t("users.deleteTooltip")}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDelete(u)}
+                    >
+                      <MaterialSymbol icon="delete" size={18} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
             </Box>
           );
         },
-      },
-      {
-        field: "display_name",
-        headerName: t("users.columns.name"),
-        flex: 1,
-        minWidth: 160,
-        pinned: "left",
-        hide: false, // always shown (locked)
-        sortable: true,
       },
       {
         field: "email",
