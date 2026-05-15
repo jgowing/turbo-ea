@@ -36,8 +36,10 @@ class Survey(Base, UUIDMixin, TimestampMixin):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    creator = relationship("User", foreign_keys=[created_by], lazy="noload")
-    responses = relationship("SurveyResponse", back_populates="survey", lazy="noload")
+    # See ``SurveyResponse`` below — ``lazy="raise"`` lets eager loaders
+    # populate reliably and surfaces accidental lazy access loudly.
+    creator = relationship("User", foreign_keys=[created_by], lazy="raise")
+    responses = relationship("SurveyResponse", back_populates="survey", lazy="raise")
 
 
 class SurveyResponse(Base, UUIDMixin, TimestampMixin):
@@ -68,6 +70,14 @@ class SurveyResponse(Base, UUIDMixin, TimestampMixin):
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    survey = relationship("Survey", back_populates="responses", lazy="noload")
-    card = relationship("Card", lazy="noload")
-    user = relationship("User", lazy="noload")
+    # ``lazy="raise"`` instead of ``"noload"`` is deliberate: under
+    # pytest-xdist's default ``--dist load`` scheduling combined with the
+    # savepoint-rollback session pattern, ``lazy="noload"`` intermittently
+    # blocks ``selectinload`` / ``joinedload`` from populating the attribute —
+    # we end up with ``r.card is None`` even though the row exists and is
+    # visible on the same connection (verified via a direct SELECT). Switching
+    # to ``"raise"`` lets the eager loader populate the attribute and makes any
+    # forgotten eager-load loud at runtime instead of silently returning None.
+    survey = relationship("Survey", back_populates="responses", lazy="raise")
+    card = relationship("Card", lazy="raise")
+    user = relationship("User", lazy="raise")
