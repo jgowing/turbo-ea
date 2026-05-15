@@ -21,12 +21,14 @@ import Switch from "@mui/material/Switch";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import type { AppRole } from "@/types";
 
+export type UserStatusFilter = "active" | "invited" | "inactive";
+
 export interface UserFilters {
   search: string;
   roles: string[];
-  statuses: ("active" | "inactive")[];
+  statuses: UserStatusFilter[];
   authMethods: ("local" | "sso")[];
-  pendingSetup: boolean;
+  invited: boolean;
 }
 
 export const EMPTY_USER_FILTERS: UserFilters = {
@@ -34,7 +36,7 @@ export const EMPTY_USER_FILTERS: UserFilters = {
   roles: [],
   statuses: [],
   authMethods: [],
-  pendingSetup: false,
+  invited: false,
 };
 
 export const USER_COLUMNS = [
@@ -65,8 +67,9 @@ export const LOCKED_USER_COLUMN_KEYS: ReadonlySet<string> = new Set(["name"]);
 const MIN_WIDTH = 220;
 const MAX_WIDTH = 500;
 
-const STATUS_OPTIONS: { key: "active" | "inactive"; tKey: string; color: string }[] = [
+const STATUS_OPTIONS: { key: UserStatusFilter; tKey: string; color: string }[] = [
   { key: "active", tKey: "users.status.active", color: "#4caf50" },
+  { key: "invited", tKey: "users.status.invited", color: "#ed6c02" },
   { key: "inactive", tKey: "users.status.disabled", color: "#9e9e9e" },
 ];
 
@@ -120,7 +123,7 @@ export default function UsersFilterSidebar({
     onFiltersChange({ ...filters, roles: next });
   };
 
-  const toggleStatus = (key: "active" | "inactive") => {
+  const toggleStatus = (key: UserStatusFilter) => {
     const next = filters.statuses.includes(key)
       ? filters.statuses.filter((s) => s !== key)
       : [...filters.statuses, key];
@@ -140,7 +143,7 @@ export default function UsersFilterSidebar({
     c += filters.roles.length;
     c += filters.statuses.length;
     c += filters.authMethods.length;
-    if (filters.pendingSetup) c += 1;
+    if (filters.invited) c += 1;
     return c;
   }, [filters]);
 
@@ -449,7 +452,7 @@ export default function UsersFilterSidebar({
                 icon="tune"
                 expanded={expandedSections.advanced}
                 onToggle={() => toggleSection("advanced")}
-                count={filters.pendingSetup ? 1 : 0}
+                count={filters.invited ? 1 : 0}
               />
               <Collapse in={expandedSections.advanced}>
                 <Box sx={{ px: 0.5, mb: 2 }}>
@@ -457,18 +460,18 @@ export default function UsersFilterSidebar({
                     control={
                       <Switch
                         size="small"
-                        checked={filters.pendingSetup}
+                        checked={filters.invited}
                         onChange={(e) =>
                           onFiltersChange({
                             ...filters,
-                            pendingSetup: e.target.checked,
+                            invited: e.target.checked,
                           })
                         }
                       />
                     }
                     label={
                       <Typography variant="body2" fontSize={13}>
-                        {t("users.filter.pendingSetupOnly")}
+                        {t("users.filter.invitedOnly")}
                       </Typography>
                     }
                   />

@@ -6,12 +6,6 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import Table from "@mui/material/Table";
-import TableHead from "@mui/material/TableHead";
-import TableBody from "@mui/material/TableBody";
-import TableRow from "@mui/material/TableRow";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
 import Paper from "@mui/material/Paper";
 import Chip from "@mui/material/Chip";
 import Select from "@mui/material/Select";
@@ -353,33 +347,39 @@ export default function UsersAdmin() {
   };
 
   // --- Resend invitation ---
-  const handleResendInvitationRow = async (inv: SsoInvitation) => {
-    setSuccess(null);
-    setError(null);
-    setWarning(null);
-    try {
-      await api.post(`/users/invitations/${inv.id}/resend`, {});
-      setSuccess(t("users.resendInviteSuccess", { email: inv.email }));
-    } catch (err) {
-      setError(
-        t("users.resendInviteFailed", {
-          error: err instanceof Error ? err.message : t("common:errors.generic"),
-        })
-      );
-    }
-  };
+  const handleResendInvitationRow = useCallback(
+    async (inv: SsoInvitation) => {
+      setSuccess(null);
+      setError(null);
+      setWarning(null);
+      try {
+        await api.post(`/users/invitations/${inv.id}/resend`, {});
+        setSuccess(t("users.resendInviteSuccess", { email: inv.email }));
+      } catch (err) {
+        setError(
+          t("users.resendInviteFailed", {
+            error: err instanceof Error ? err.message : t("common:errors.generic"),
+          }),
+        );
+      }
+    },
+    [t],
+  );
 
   // --- Delete invitation ---
-  const handleDeleteInvitation = async (inv: SsoInvitation) => {
-    try {
-      await api.delete(`/users/invitations/${inv.id}`);
-      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("common:errors.generic")
-      );
-    }
-  };
+  const handleDeleteInvitation = useCallback(
+    async (inv: SsoInvitation) => {
+      try {
+        await api.delete(`/users/invitations/${inv.id}`);
+        setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : t("common:errors.generic"),
+        );
+      }
+    },
+    [t],
+  );
 
   // Build a map from role key to AppRole for quick lookups
   const roleMap = useMemo(() => new Map(roles.map((r) => [r.key, r])), [roles]);
@@ -408,6 +408,30 @@ export default function UsersAdmin() {
     [roleMap],
   );
 
+  // Map invitations by email so we can flag invited users in the main grid.
+  // Email is the natural key — invitations and users carry the same address
+  // and the backend builds the invitations list as the subset of users that
+  // never logged in.
+  const invitationByEmail = useMemo(() => {
+    const m = new Map<string, SsoInvitation>();
+    for (const inv of invitations) m.set(inv.email.toLowerCase(), inv);
+    return m;
+  }, [invitations]);
+
+  const getInvitation = useCallback(
+    (u: User) => invitationByEmail.get(u.email.toLowerCase()),
+    [invitationByEmail],
+  );
+
+  const userStatus = useCallback(
+    (u: User): "active" | "invited" | "inactive" => {
+      if (!u.is_active) return "inactive";
+      if (getInvitation(u)) return "invited";
+      return "active";
+    },
+    [getInvitation],
+  );
+
   // Apply client-side filtering
   const filteredUsers = useMemo(() => {
     const q = filters.search.trim().toLowerCase();
@@ -421,17 +445,16 @@ export default function UsersAdmin() {
         return false;
       }
       if (filters.statuses.length > 0) {
-        const status = u.is_active ? "active" : "inactive";
-        if (!filters.statuses.includes(status)) return false;
+        if (!filters.statuses.includes(userStatus(u))) return false;
       }
       if (filters.authMethods.length > 0) {
         const auth = u.auth_provider === "sso" ? "sso" : "local";
         if (!filters.authMethods.includes(auth)) return false;
       }
-      if (filters.pendingSetup && !u.pending_setup) return false;
+      if (filters.invited && !getInvitation(u)) return false;
       return true;
     });
-  }, [users, filters]);
+  }, [users, filters, userStatus, getInvitation]);
 
   const handleResetColumns = useCallback(() => {
     setSelectedColumns(new Set(DEFAULT_USER_COLUMNS));
@@ -451,6 +474,7 @@ export default function UsersAdmin() {
         cellRenderer: (p: { data?: User; value: string }) => {
           const u = p.data;
           if (!u) return null;
+          const inv = getInvitation(u);
           return (
             <Box
               sx={{
@@ -495,6 +519,24 @@ export default function UsersAdmin() {
                     />
                   </IconButton>
                 </Tooltip>
+                {inv && (
+                  <Tooltip title={t("users.resendInviteTooltip")}>
+                    <IconButton size="small" onClick={() => handleResendInvitationRow(inv)}>
+                      <MaterialSymbol icon="forward_to_inbox" size={18} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {inv && (
+                  <Tooltip title={t("users.invitations.revokeTooltip")}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => handleDeleteInvitation(inv)}
+                    >
+                      <MaterialSymbol icon="cancel_schedule_send" size={18} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 {!u.is_active && (
                   <Tooltip title={t("users.deleteTooltip")}>
                     <IconButton
@@ -640,16 +682,38 @@ export default function UsersAdmin() {
       {
         field: "is_active",
         headerName: t("users.columns.status"),
-        width: 110,
+        width: 130,
         hide: !selectedColumns.has("status"),
         sortable: true,
-        cellRenderer: (p: { value: boolean }) => (
-          <Chip
-            size="small"
-            label={p.value ? t("users.status.active") : t("users.status.disabled")}
-            color={p.value ? "success" : "default"}
-          />
-        ),
+        valueGetter: (p: { data?: User }) =>
+          p.data ? userStatus(p.data) : "inactive",
+        cellRenderer: (p: { data?: User }) => {
+          const u = p.data;
+          if (!u) return null;
+          const status = userStatus(u);
+          if (status === "invited") {
+            return (
+              <Chip
+                size="small"
+                icon={<MaterialSymbol icon="mail" size={14} />}
+                label={t("users.status.invited")}
+                color="warning"
+                variant="outlined"
+              />
+            );
+          }
+          return (
+            <Chip
+              size="small"
+              label={
+                status === "active"
+                  ? t("users.status.active")
+                  : t("users.status.disabled")
+              }
+              color={status === "active" ? "success" : "default"}
+            />
+          );
+        },
       },
       {
         field: "last_login",
@@ -705,6 +769,10 @@ export default function UsersAdmin() {
       openEdit,
       toggleActive,
       handleDelete,
+      getInvitation,
+      userStatus,
+      handleResendInvitationRow,
+      handleDeleteInvitation,
     ],
   );
 
@@ -844,57 +912,6 @@ export default function UsersAdmin() {
               />
             </Box>
           </Paper>
-
-          {/* Pending Invitations — unchanged */}
-          {invitations.length > 0 && (
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                {t("users.pendingInvitations")}
-              </Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>{t("users.invitations.email")}</TableCell>
-                      <TableCell>{t("users.invitations.role")}</TableCell>
-                      <TableCell>{t("users.invitations.invited")}</TableCell>
-                      <TableCell align="right">{t("users.columns.actions")}</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {invitations.map((inv) => (
-                      <TableRow key={inv.id} hover>
-                        <TableCell>{inv.email}</TableCell>
-                        <TableCell>{renderRoleChip(inv.role)}</TableCell>
-                        <TableCell>
-                          {inv.created_at ? formatDate(inv.created_at) : "—"}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title={t("users.resendInviteTooltip")}>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleResendInvitationRow(inv)}
-                            >
-                              <MaterialSymbol icon="forward_to_inbox" size={20} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={t("users.invitations.revokeTooltip")}>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteInvitation(inv)}
-                            >
-                              <MaterialSymbol icon="delete" size={20} />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
 
           {/* Invite User Dialog */}
           <Dialog
