@@ -14,10 +14,11 @@ Admins can now toggle the GRC (Governance, Risk, Compliance) module on or off, m
 
 ### Changed
 - **Card-level Risks and Compliance tabs auto-hide when empty.** Card Detail now fetches the per-card risk list and compliance-finding list on mount and only renders the corresponding tab when the count is greater than zero. Cards with no GRC content no longer carry empty tabs that take up tab-strip space. Manage users who need to seed the first risk on a card can do so from the GRC Risk Register's **+ Create Risk** flow with the card linked.
-- **Mitigation tasks panel — one-shot tasks read at a glance.** Three UX fixes to the per-task row on Risk Detail:
+- **Mitigation tasks panel — one-shot tasks read at a glance.** Four UX fixes to the per-task row on Risk Detail:
   1. A coloured **Done** (green) or **Skipped** (amber) chip is rendered on the task row the moment its single occurrence terminates, replacing the misleading "Inactive" chip that didn't convey what happened.
   2. The meta line now carries the completion timestamp + completer inline (`Completed: 5 Jun 2026, 17:03 · by Vincent Verdet`), so the user no longer has to expand the history to see how a one-shot task closed.
   3. The "Cycle #1" sequence label is suppressed in the expanded history when the task is one-shot — single-occurrence tasks aren't a cycle stream, and the surrounding row already tells the whole story. Recurring tasks keep the cycle labels.
+  4. The "One-shot" recurrence chip is dropped from one-shot task rows — once a task is shown as Done / Skipped / Open with a due date, repeating "One-shot" is just noise. Recurring tasks keep their cadence chip ("Every 6 months", etc.).
 - **All mitigation-task dates respect the user's date-format preference.** Target dates, completion timestamps, activation dates, and the "Next scheduled" chip are now formatted through the shared `useDateFormat` hook instead of mixing ISO strings (`2026-06-05`) with locale defaults (`15/05/2026, 17:03:38`) on the same row.
 
 ## [1.13.2] - 2026-05-15

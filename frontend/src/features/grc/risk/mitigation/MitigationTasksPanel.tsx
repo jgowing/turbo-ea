@@ -306,21 +306,18 @@ export default function MitigationTasksPanel({
                       <Typography variant="body1" fontWeight={600}>
                         {task.title}
                       </Typography>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        icon={
-                          <MaterialSymbol
-                            icon={task.recurrence_unit === "none" ? "task_alt" : "autorenew"}
-                            size={14}
-                          />
-                        }
-                        label={formatRecurrence(
-                          task.recurrence_unit,
-                          task.recurrence_interval,
-                          t,
-                        )}
-                      />
+                      {!isOneShot && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          icon={<MaterialSymbol icon="autorenew" size={14} />}
+                          label={formatRecurrence(
+                            task.recurrence_unit,
+                            task.recurrence_interval,
+                            t,
+                          )}
+                        />
+                      )}
                       {isDone && (
                         <Chip
                           size="small"
