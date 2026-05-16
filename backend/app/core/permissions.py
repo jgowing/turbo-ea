@@ -160,11 +160,11 @@ APP_PERMISSIONS: dict[str, dict] = {
             "turbolens.manage": "Manage TurboLens connections and trigger analyses",
         },
     },
-    "security_compliance": {
+    "compliance": {
         "label": "Compliance",
         "permissions": {
-            "security_compliance.view": "View compliance reports",
-            "security_compliance.manage": "Trigger compliance scans and update finding status",
+            "compliance.view": "View compliance reports",
+            "compliance.manage": "Trigger compliance scans and update finding status",
         },
     },
     "risks": {
@@ -180,7 +180,7 @@ APP_PERMISSIONS: dict[str, dict] = {
             "grc.view": (
                 "View the GRC module (Governance, Risk, Compliance). "
                 "Risk and Compliance subtabs additionally honour risks.view "
-                "and security_compliance.view."
+                "and compliance.view."
             ),
             "grc.manage": (
                 "Manage Governance content (AI risk classifications, ownership, principles)"
@@ -339,8 +339,8 @@ BPM_ADMIN_PERMISSIONS: dict[str, bool] = {
     "servicenow.manage": False,
     "turbolens.view": True,
     "turbolens.manage": False,
-    "security_compliance.view": True,
-    "security_compliance.manage": False,
+    "compliance.view": True,
+    "compliance.manage": False,
     "risks.view": True,
     "risks.manage": True,
     "grc.view": True,
@@ -411,8 +411,8 @@ MEMBER_PERMISSIONS: dict[str, bool] = {
     "servicenow.manage": False,
     "turbolens.view": True,
     "turbolens.manage": False,
-    "security_compliance.view": True,
-    "security_compliance.manage": False,
+    "compliance.view": True,
+    "compliance.manage": False,
     "risks.view": True,
     "risks.manage": True,
     "grc.view": True,
@@ -483,8 +483,8 @@ VIEWER_PERMISSIONS: dict[str, bool] = {
     "servicenow.manage": False,
     "turbolens.view": False,
     "turbolens.manage": False,
-    "security_compliance.view": True,
-    "security_compliance.manage": False,
+    "compliance.view": True,
+    "compliance.manage": False,
     "risks.view": True,
     "risks.manage": False,
     "grc.view": True,

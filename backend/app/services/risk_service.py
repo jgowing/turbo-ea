@@ -178,7 +178,7 @@ async def promote_compliance_finding(
 
     Seeds:
     * category = ``compliance``
-    * source_type = ``security_compliance`` / source_ref = regulation key
+    * source_type = ``compliance`` / source_ref = regulation key
     * title = ``"<article>: <card or 'landscape'>"``
     * description = requirement + gap description
     * links the finding's affected card (if any)
@@ -227,7 +227,7 @@ async def promote_compliance_finding(
         title=title[:500],
         description=description,
         category=overrides.get("category", "compliance"),
-        source_type="security_compliance",
+        source_type="compliance",
         source_ref=finding.regulation,
         initial_probability=probability,
         initial_impact=impact,

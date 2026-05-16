@@ -99,7 +99,7 @@ export default function ComplianceLifecycleTimeline({
     setErr(null);
     try {
       const updated = await api.patch<TurboLensComplianceFinding>(
-        `/turbolens/security/compliance-findings/${finding.id}`,
+        `/compliance/compliance-findings/${finding.id}`,
         { decision: to },
       );
       onUpdated(updated);
@@ -170,7 +170,7 @@ export default function ComplianceLifecycleTimeline({
           <Chip
             size="small"
             icon={<MaterialSymbol icon={PHASE_ICONS[sideBranch]} size={14} />}
-            label={t(`turbolens_security_compliance_decision_${sideBranch}`)}
+            label={t(`compliance_decision_${sideBranch}`)}
             sx={{
               bgcolor: COMPLIANCE_LIFECYCLE_COLORS[sideBranch],
               color: surface.light.paper,
@@ -311,7 +311,7 @@ export default function ComplianceLifecycleTimeline({
                     lineHeight: 1.2,
                   }}
                 >
-                  {t(`turbolens_security_compliance_decision_${phase}`)}
+                  {t(`compliance_decision_${phase}`)}
                 </Typography>
               </Box>
             );
@@ -357,7 +357,7 @@ export default function ComplianceLifecycleTimeline({
             >
               {next === "in_review" && current !== "new"
                 ? tCards("compliance.lifecycle.reopen")
-                : t(`turbolens_security_compliance_decision_${next}`)}
+                : t(`compliance_decision_${next}`)}
             </Button>
           ))}
         </Stack>

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SecurityScanCard from "./SecurityScanCard";
-import type { SecurityScanRun } from "@/types";
+import ComplianceScanCard from "./ComplianceScanCard";
+import type { ComplianceScanRun } from "@/types";
 
-function renderCard(props: Partial<Parameters<typeof SecurityScanCard>[0]>) {
-  const defaults: Parameters<typeof SecurityScanCard>[0] = {
+function renderCard(props: Partial<Parameters<typeof ComplianceScanCard>[0]>) {
+  const defaults: Parameters<typeof ComplianceScanCard>[0] = {
     title: "Compliance scan",
     description: "Scan description",
     icon: "shield",
@@ -17,10 +17,10 @@ function renderCard(props: Partial<Parameters<typeof SecurityScanCard>[0]>) {
     neverScannedLabel: "No scan yet",
     phaseLabel: (p) => p,
   };
-  return render(<SecurityScanCard {...defaults} {...props} />);
+  return render(<ComplianceScanCard {...defaults} {...props} />);
 }
 
-describe("SecurityScanCard", () => {
+describe("ComplianceScanCard", () => {
   it("renders the 'never scanned' label when there is no completed run", () => {
     renderCard({});
     expect(screen.getByText("No scan yet")).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("SecurityScanCard", () => {
   });
 
   it("shows the run button disabled and a progress bar while running", () => {
-    const run: SecurityScanRun = {
+    const run: ComplianceScanRun = {
       run_id: "abc",
       status: "running",
       started_at: "2026-04-21T10:00:00Z",
@@ -53,7 +53,7 @@ describe("SecurityScanCard", () => {
   });
 
   it("renders last-scan timestamp and summary when a completed run is available", () => {
-    const run: SecurityScanRun = {
+    const run: ComplianceScanRun = {
       run_id: "abc",
       status: "completed",
       started_at: "2026-04-21T09:00:00Z",

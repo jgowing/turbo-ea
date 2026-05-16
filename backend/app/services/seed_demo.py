@@ -5791,7 +5791,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "registry per EU AI Act Art. 60."
             ),
             "category": "compliance",
-            "source_type": "security_compliance",
+            "source_type": "compliance",
             "source_ref": "eu_ai_act",
             "initial_probability": "high",
             "initial_impact": "high",
@@ -5810,7 +5810,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "datacenters; no SCC attached to the DPA of record."
             ),
             "category": "compliance",
-            "source_type": "security_compliance",
+            "source_type": "compliance",
             "source_ref": "gdpr",
             "initial_probability": "medium",
             "initial_impact": "high",
@@ -5922,7 +5922,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "incident response playbook."
             ),
             "category": "compliance",
-            "source_type": "security_compliance",
+            "source_type": "compliance",
             "source_ref": "nis2",
             "initial_probability": "medium",
             "initial_impact": "critical",
@@ -6019,7 +6019,7 @@ async def _seed_demo_risks(db, admin_id, uuid_to_ref) -> int:
                 "resilience-testing plan for their top-tier ICT providers."
             ),
             "category": "compliance",
-            "source_type": "security_compliance",
+            "source_type": "compliance",
             "source_ref": "dora",
             "initial_probability": "medium",
             "initial_impact": "high",

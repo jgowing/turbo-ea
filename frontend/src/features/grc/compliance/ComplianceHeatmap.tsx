@@ -69,11 +69,11 @@ export default function ComplianceHeatmap({
       <Box />
       {STATUSES.map((s) => (
         <Typography key={s} variant="caption" color="text.secondary" align="center" sx={{ py: 1 }}>
-          {t(`turbolens_security_compliance_status_${s}`)}
+          {t(`compliance_status_${s}`)}
         </Typography>
       ))}
       <Typography variant="caption" color="text.secondary" align="center" sx={{ py: 1 }}>
-        {t("turbolens_security_kpi_compliance_score")}
+        {t("compliance_kpi_compliance_score")}
       </Typography>
 
       {regulations.map(({ key: reg, label }) => {

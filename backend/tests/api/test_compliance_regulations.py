@@ -188,7 +188,7 @@ class TestComplianceRollupOrphans:
     async def _make_run_and_finding(self, db, regulation_key: str) -> None:
         run = TurboLensAnalysisRun(
             id=uuid.uuid4(),
-            analysis_type=AnalysisType.SECURITY_COMPLIANCE,
+            analysis_type=AnalysisType.COMPLIANCE,
             status=AnalysisStatus.COMPLETED,
         )
         db.add(run)
@@ -225,7 +225,7 @@ class TestComplianceRollupOrphans:
         await db.flush()
 
         r = await client.get(
-            "/api/v1/turbolens/security/compliance",
+            "/api/v1/compliance/compliance",
             headers=auth_headers(admin),
         )
         assert r.status_code == 200
@@ -242,7 +242,7 @@ class TestComplianceRollupOrphans:
         await self._make_run_and_finding(db, "removed_regulation")
 
         r = await client.get(
-            "/api/v1/turbolens/security/compliance",
+            "/api/v1/compliance/compliance",
             headers=auth_headers(admin),
         )
         assert r.status_code == 200
@@ -262,7 +262,7 @@ class TestManualFindingValidation:
             headers=auth_headers(admin),
         )
         r = await client.post(
-            "/api/v1/turbolens/security/compliance-findings",
+            "/api/v1/compliance/compliance-findings",
             json={
                 "regulation": "internal_policy",
                 "requirement": "Must follow internal change-control policy.",
@@ -277,7 +277,7 @@ class TestManualFindingValidation:
     async def test_manual_finding_rejects_unknown_regulation(self, client, db, reg_env):
         admin = reg_env["admin"]
         r = await client.post(
-            "/api/v1/turbolens/security/compliance-findings",
+            "/api/v1/compliance/compliance-findings",
             json={
                 "regulation": "definitely_not_a_real_regulation",
                 "requirement": "Test.",
@@ -333,11 +333,11 @@ class TestRescanPreservesUserWork:
         ``vanished`` branch and exercise the preservation logic.
         """
         from app.api.v1.turbolens import AnalysisStatus, AnalysisType
-        from app.services.turbolens_security import run_compliance_scan
+        from app.services.compliance_scanner import run_compliance_scan
 
         scan_run = TurboLensAnalysisRun(
             id=uuid.uuid4(),
-            analysis_type=AnalysisType.SECURITY_COMPLIANCE,
+            analysis_type=AnalysisType.COMPLIANCE,
             status=AnalysisStatus.RUNNING,
         )
         db.add(scan_run)
@@ -360,7 +360,7 @@ class TestRescanPreservesUserWork:
         """Insert a finding with a fixed finding_key + lifecycle state."""
         prev_run = TurboLensAnalysisRun(
             id=uuid.uuid4(),
-            analysis_type=AnalysisType.SECURITY_COMPLIANCE,
+            analysis_type=AnalysisType.COMPLIANCE,
             status=AnalysisStatus.COMPLETED,
         )
         db.add(prev_run)
@@ -491,7 +491,7 @@ class TestRescanPreservesUserWork:
         # state the old code would have left it in).
         prev_run = TurboLensAnalysisRun(
             id=uuid.uuid4(),
-            analysis_type=AnalysisType.SECURITY_COMPLIANCE,
+            analysis_type=AnalysisType.COMPLIANCE,
             status=AnalysisStatus.COMPLETED,
         )
         db.add(prev_run)

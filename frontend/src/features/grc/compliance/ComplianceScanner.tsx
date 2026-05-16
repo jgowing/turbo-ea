@@ -1,5 +1,5 @@
 /**
- * TurboLensSecurity — on-demand compliance scan.
+ * ComplianceScanner — on-demand compliance scan.
  *
  * Mirrors the Duplicates / Vendors pattern: trigger via POST, poll the
  * analysis run, then reload findings. Two inner sub-tabs: Overview
@@ -36,11 +36,11 @@ import type {
   ComplianceRegulation,
   ComplianceStatus,
   RegulationKey,
-  SecurityActiveRuns,
-  SecurityScanRun,
+  ActiveComplianceRuns,
+  ComplianceScanRun,
   TurboLensComplianceBundle,
   TurboLensComplianceFinding,
-  TurboLensSecurityOverview,
+  ComplianceOverview,
 } from "@/types";
 import ComplianceHeatmap from "./ComplianceHeatmap";
 import ComplianceGrid from "@/features/grc/compliance/ComplianceGrid";
@@ -51,14 +51,15 @@ import {
   RiskDialogSeed,
   seedFromCompliance,
 } from "@/features/grc/risk/riskDefaults";
-import { useNavigate } from "react-router-dom";
-import SecurityScanCard from "./SecurityScanCard";
-import { useAnalysisPolling } from "./useAnalysisPolling";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { useAuthContext } from "@/hooks/AuthContext";
+import ComplianceScanCard from "./ComplianceScanCard";
+import { useAnalysisPolling } from "@/features/turbolens/useAnalysisPolling";
 
 /**
  * Resolve a regulation key to a display label. Order of precedence:
  *   1. The DB row's `label` (from the singleton hook), so admin edits show.
- *   2. The i18n key `turbolens_security_regulation_<key>` if it exists
+ *   2. The i18n key `compliance_regulation_<key>` if it exists
  *      (covers the 6 built-ins in non-English locales).
  *   3. The raw key, as a last-resort fallback for orphan findings whose
  *      regulation was deleted from the table.
@@ -72,7 +73,7 @@ function resolveRegulationLabel(
   const reg = byKey[key];
   if (reg?.label) return reg.label;
   if (fallbackLabel) return fallbackLabel;
-  const i18nKey = `turbolens_security_regulation_${key}`;
+  const i18nKey = `compliance_regulation_${key}`;
   const translated = t(i18nKey, { defaultValue: key });
   return translated && translated !== i18nKey ? translated : key;
 }
@@ -112,11 +113,11 @@ function exportComplianceToCsv(
     lines.push(
       [
         f.card_name ?? "",
-        t(`turbolens_security_severity_${f.severity}`),
-        t(`turbolens_security_compliance_status_${f.status}`),
+        t(`compliance_severity_${f.severity}`),
+        t(`compliance_status_${f.status}`),
         f.regulation_article ?? "",
         f.requirement ?? "",
-        t(`turbolens_security_compliance_decision_${f.decision}`),
+        t(`compliance_decision_${f.decision}`),
         f.ai_detected ? "Yes" : "No",
         f.auto_resolved ? "Yes" : "No",
         f.regulation,
@@ -144,13 +145,14 @@ function exportComplianceToCsv(
   URL.revokeObjectURL(url);
 }
 
-export default function TurboLensSecurity() {
+export default function ComplianceScanner() {
   const { t } = useTranslation("admin");
   const { t: tCards } = useTranslation("cards");
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const phaseLabel = useCallback(
     (phase: string) => {
-      const key = `turbolens_security_phase_${phase}`;
+      const key = `compliance_phase_${phase}`;
       const translated = t(key);
       return translated === key ? phase.replace(/_/g, " ") : translated;
     },
@@ -159,7 +161,7 @@ export default function TurboLensSecurity() {
 
   // ── View state ─────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(0);
-  const [overview, setOverview] = useState<TurboLensSecurityOverview | null>(null);
+  const [overview, setOverview] = useState<ComplianceOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [compliance, setCompliance] = useState<TurboLensComplianceBundle[]>([]);
   const [complianceLoading, setComplianceLoading] = useState(true);
@@ -280,7 +282,7 @@ export default function TurboLensSecurity() {
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
     try {
-      const data = await api.get<TurboLensSecurityOverview>("/turbolens/security/overview");
+      const data = await api.get<ComplianceOverview>("/compliance/overview");
       setOverview(data);
     } catch (e) {
       setOverview(null);
@@ -294,7 +296,7 @@ export default function TurboLensSecurity() {
     setComplianceLoading(true);
     try {
       const data = await api.get<TurboLensComplianceBundle[]>(
-        "/turbolens/security/compliance",
+        "/compliance/compliance",
       );
       setCompliance(data);
     } catch {
@@ -324,7 +326,7 @@ export default function TurboLensSecurity() {
   // ── Scan trigger + polling ────────────────────────────────────────
   const { startPolling: startCompliancePoll, polling: compliancePolling } = useAnalysisPolling(
     () => {
-      setInfo(t("turbolens_security_compliance_scan_complete"));
+      setInfo(t("compliance_scan_complete"));
       reloadAll();
     },
     (msg) => setError(msg),
@@ -337,8 +339,8 @@ export default function TurboLensSecurity() {
     let cancelled = false;
     (async () => {
       try {
-        const active = await api.get<SecurityActiveRuns>(
-          "/turbolens/security/active-runs",
+        const active = await api.get<ActiveComplianceRuns>(
+          "/compliance/active-runs",
         );
         if (cancelled) return;
         if (active.compliance?.id) startCompliancePoll(active.compliance.id);
@@ -357,15 +359,15 @@ export default function TurboLensSecurity() {
     setError(null);
     setInfo(null);
     if (selectedRegs.size === 0) {
-      setError(t("turbolens_security_pick_regulation"));
+      setError(t("compliance_pick_regulation"));
       return;
     }
     try {
       const res = await api.post<{ run_id: string }>(
-        "/turbolens/security/compliance-scan",
+        "/compliance/compliance-scan",
         { regulations: Array.from(selectedRegs) },
       );
-      setInfo(t("turbolens_security_compliance_scan_started"));
+      setInfo(t("compliance_scan_started"));
       startCompliancePoll(res.run_id);
       loadOverview();
     } catch (e) {
@@ -450,7 +452,7 @@ export default function TurboLensSecurity() {
     ) => {
       try {
         const updated = await api.patch<TurboLensComplianceFinding>(
-          `/turbolens/security/compliance-findings/${finding.id}`,
+          `/compliance/compliance-findings/${finding.id}`,
           {
             decision,
             ...(note !== undefined ? { review_note: note } : {}),
@@ -484,10 +486,10 @@ export default function TurboLensSecurity() {
     <Box>
       <Box sx={{ mb: 2 }}>
         <Typography variant="h6" fontWeight={700}>
-          {t("turbolens_security_title")}
+          {t("compliance_title")}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 800 }}>
-          {t("turbolens_security_description")}
+          {t("compliance_description")}
         </Typography>
       </Box>
 
@@ -507,8 +509,8 @@ export default function TurboLensSecurity() {
         onChange={(_, v) => setActiveTab(v)}
         sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
       >
-        <Tab label={t("turbolens_security_tab_overview")} />
-        <Tab label={t("turbolens_security_tab_compliance")} />
+        <Tab label={t("compliance_tab_overview")} />
+        <Tab label={t("compliance_tab_compliance")} />
       </Tabs>
 
       {activeTab === 0 && renderOverview()}
@@ -529,18 +531,18 @@ export default function TurboLensSecurity() {
         maxWidth="sm"
       >
         <DialogTitle>
-          {t("turbolens_security_compliance_accept_title")}
+          {t("compliance_accept_title")}
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t("turbolens_security_compliance_accept_help")}
+            {t("compliance_accept_help")}
           </Typography>
           <TextField
             autoFocus
             fullWidth
             multiline
             minRows={3}
-            label={t("turbolens_security_compliance_review_note")}
+            label={t("compliance_review_note")}
             value={acceptDialog?.note ?? ""}
             onChange={(e) =>
               setAcceptDialog((d) =>
@@ -556,7 +558,7 @@ export default function TurboLensSecurity() {
             onClick={() => setAcceptDialog(null)}
             disabled={acceptDialog?.saving}
           >
-            {t("turbolens_security_compliance_accept_cancel")}
+            {t("compliance_accept_cancel")}
           </Button>
           <Button
             variant="contained"
@@ -574,7 +576,7 @@ export default function TurboLensSecurity() {
               setAcceptDialog(null);
             }}
           >
-            {t("turbolens_security_compliance_accept_confirm")}
+            {t("compliance_accept_confirm")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -617,7 +619,7 @@ export default function TurboLensSecurity() {
         </Box>
       );
     }
-    const complianceRun: SecurityScanRun = overview?.compliance_run ?? {
+    const complianceRun: ComplianceScanRun = overview?.compliance_run ?? {
       run_id: null,
       status: null,
       started_at: null,
@@ -640,19 +642,19 @@ export default function TurboLensSecurity() {
     return (
       <Stack spacing={3}>
         {turboLensAiConfigured ? (
-          <SecurityScanCard
-            title={t("turbolens_security_compliance_scan_title")}
-            description={t("turbolens_security_compliance_scan_description")}
+          <ComplianceScanCard
+            title={t("compliance_scan_title")}
+            description={t("compliance_scan_description")}
             icon="verified"
             run={complianceRun}
             running={compliancePolling}
             onRun={handleComplianceScan}
-            buttonLabel={t("turbolens_security_run_compliance_scan")}
-            runningLabel={t("turbolens_security_scanning")}
-            neverScannedLabel={t("turbolens_security_never_scanned")}
+            buttonLabel={t("compliance_run_compliance_scan")}
+            runningLabel={t("compliance_scanning")}
+            neverScannedLabel={t("compliance_never_scanned")}
             phaseLabel={phaseLabel}
             summaryLabel={(s) =>
-              t("turbolens_security_compliance_summary_label", {
+              t("compliance_summary_label", {
                 count: (s.compliance_findings as number) ?? 0,
                 regs: Array.isArray(s.regulations) ? s.regulations.length : 0,
               })
@@ -661,7 +663,7 @@ export default function TurboLensSecurity() {
           >
             {enabledRegulations.length === 0 ? (
               <Alert severity="info" sx={{ mt: 1 }}>
-                {t("turbolens_security_no_regulations_enabled")}
+                {t("compliance_no_regulations_enabled")}
               </Alert>
             ) : (
               <FormGroup row sx={{ gap: 1 }}>
@@ -690,15 +692,29 @@ export default function TurboLensSecurity() {
                 ))}
               </FormGroup>
             )}
-          </SecurityScanCard>
+          </ComplianceScanCard>
         ) : (
-          <Alert severity="info">
-            {t("turbolens_security_ai_not_configured_register_still_available")}
+          <Alert
+            severity="info"
+            action={
+              user?.permissions?.["*"] || user?.permissions?.["admin.settings"] ? (
+                <Button
+                  size="small"
+                  component={RouterLink}
+                  to="/admin/settings?tab=ai"
+                  color="inherit"
+                >
+                  {t("grc:compliance.aiRequired.configureCta")}
+                </Button>
+              ) : null
+            }
+          >
+            {t("compliance_ai_not_configured_register_still_available")}
           </Alert>
         )}
 
         {!hasEver && turboLensAiConfigured && (
-          <Alert severity="info">{t("turbolens_security_never_scanned")}</Alert>
+          <Alert severity="info">{t("compliance_never_scanned")}</Alert>
         )}
 
         {overview && renderKpisAndCharts(overview, avgCompliance)}
@@ -707,7 +723,7 @@ export default function TurboLensSecurity() {
   }
 
   function renderKpisAndCharts(
-    overview: TurboLensSecurityOverview,
+    overview: ComplianceOverview,
     avgCompliance: number,
   ) {
     return (
@@ -715,7 +731,7 @@ export default function TurboLensSecurity() {
         <Grid container spacing={2}>
           <Grid item xs={12} md={4}>
             <MetricCard
-              label={t("turbolens_security_kpi_compliance_score")}
+              label={t("compliance_kpi_compliance_score")}
               value={`${avgCompliance}%`}
               icon="verified"
               color={
@@ -731,7 +747,7 @@ export default function TurboLensSecurity() {
 
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
-            {t("turbolens_security_compliance_summary")}
+            {t("compliance_summary")}
           </Typography>
           <ComplianceHeatmap
             regulations={enabledRegulations.map((r) => ({
@@ -792,14 +808,14 @@ export default function TurboLensSecurity() {
                     {bundle.is_known === false && (
                       <Chip
                         size="small"
-                        label={t("turbolens_security_regulation_orphan")}
+                        label={t("compliance_regulation_orphan")}
                         sx={{ height: 18, fontSize: 10 }}
                       />
                     )}
                     {bundle.is_known !== false && bundle.is_enabled === false && (
                       <Chip
                         size="small"
-                        label={t("turbolens_security_regulation_disabled")}
+                        label={t("compliance_regulation_disabled")}
                         sx={{ height: 18, fontSize: 10 }}
                       />
                     )}
@@ -827,9 +843,9 @@ export default function TurboLensSecurity() {
             sx={{ py: 0 }}
             onClose={() => setHighlightCell(null)}
           >
-            {t("turbolens_security_compliance_filter_from_heatmap", {
+            {t("compliance_filter_from_heatmap", {
               status: t(
-                `turbolens_security_compliance_status_${highlightCell.status}`,
+                `compliance_status_${highlightCell.status}`,
               ),
             })}
           </Alert>
@@ -882,7 +898,7 @@ export default function TurboLensSecurity() {
           }
           onDelete={async (f) => {
             try {
-              await api.delete(`/turbolens/security/compliance-findings/${f.id}`);
+              await api.delete(`/compliance/compliance-findings/${f.id}`);
               setCompliance((prev) =>
                 prev.map((b) =>
                   b.regulation === f.regulation
@@ -902,7 +918,7 @@ export default function TurboLensSecurity() {
               const result = await api.delete<{
                 updated: number;
                 skipped: { id: string; reason: string }[];
-              }>("/turbolens/security/compliance-findings/bulk", { ids });
+              }>("/compliance/compliance-findings/bulk", { ids });
               // Optimistic-but-safe: just reload — bulk ops can affect
               // many rows across regulations and the server's partial-success
               // contract means we can't easily compute the new state locally.
@@ -918,7 +934,7 @@ export default function TurboLensSecurity() {
               const result = await api.patch<{
                 updated: number;
                 skipped: { id: string; reason: string }[];
-              }>("/turbolens/security/compliance-findings/bulk", {
+              }>("/compliance/compliance-findings/bulk", {
                 ids,
                 decision,
                 review_note: reviewNote,

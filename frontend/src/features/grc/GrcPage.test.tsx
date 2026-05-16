@@ -11,15 +11,15 @@ vi.mock("@/features/grc/risk/RiskRegisterPage", () => ({
   default: () => <div data-testid="risk-register" />,
 }));
 
-vi.mock("@/features/turbolens/TurboLensSecurity", () => ({
-  default: () => <div data-testid="turbolens-security" />,
+vi.mock("@/features/grc/compliance/ComplianceScanner", () => ({
+  default: () => <div data-testid="compliance-scanner" />,
 }));
 
-// ComplianceTab wraps TurboLensSecurity with an AI-provider gate. Stub the
-// wrapper so this smoke test doesn't depend on useAiStatus's network call;
-// the gate is exercised by ComplianceTab.test.tsx.
+// ComplianceTab wraps ComplianceScanner. Stub the wrapper directly so this
+// smoke test doesn't depend on useAiStatus's network call; the gate is
+// exercised by ComplianceTab.test.tsx.
 vi.mock("./compliance/ComplianceTab", () => ({
-  default: () => <div data-testid="turbolens-security" />,
+  default: () => <div data-testid="compliance-scanner" />,
 }));
 
 import { api } from "@/api/client";
@@ -68,7 +68,7 @@ describe("GrcPage", () => {
   it("renders the embedded Compliance scanner when ?tab=compliance", async () => {
     renderAt("/grc?tab=compliance");
     await waitFor(() =>
-      expect(screen.getByTestId("turbolens-security")).toBeInTheDocument(),
+      expect(screen.getByTestId("compliance-scanner")).toBeInTheDocument(),
     );
   });
 });

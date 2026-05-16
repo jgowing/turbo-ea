@@ -84,7 +84,7 @@ export default function FindingDetailDrawer({
     setErr(null);
     try {
       const updated = await api.post<TurboLensComplianceFinding>(
-        `/turbolens/security/compliance-findings/${finding.id}/ai-verdict`,
+        `/compliance/compliance-findings/${finding.id}/ai-verdict`,
         { verdict },
       );
       onUpdated?.(updated);
@@ -127,21 +127,21 @@ export default function FindingDetailDrawer({
             <Chip
               size="small"
               color={severityChipColor(finding.severity)}
-              label={t(`turbolens_security_severity_${finding.severity}`)}
+              label={t(`compliance_severity_${finding.severity}`)}
             />
             <Chip
               size="small"
               color={complianceStatusColor(finding.status)}
-              label={t(`turbolens_security_compliance_status_${finding.status}`)}
+              label={t(`compliance_status_${finding.status}`)}
             />
             {finding.ai_detected && (
-              <Tooltip title={t("turbolens_security_compliance_ai_detected_help")}>
+              <Tooltip title={t("compliance_ai_detected_help")}>
                 <Chip
                   size="small"
                   variant="outlined"
                   color="warning"
                   icon={<MaterialSymbol icon="psychology" size={14} />}
-                  label={t("turbolens_security_compliance_ai_detected")}
+                  label={t("compliance_ai_detected")}
                 />
               </Tooltip>
             )}
@@ -150,7 +150,7 @@ export default function FindingDetailDrawer({
           {/* Subtitle: regulation + card */}
           <Typography variant="subtitle2" color="text.secondary">
             {regulationsByKey[finding.regulation]?.label ??
-              t(`turbolens_security_regulation_${finding.regulation}`, {
+              t(`compliance_regulation_${finding.regulation}`, {
                 defaultValue: finding.regulation,
               })}
             {finding.card_name && finding.card_id ? ` · ${finding.card_name}` : ""}

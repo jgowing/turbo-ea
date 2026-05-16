@@ -372,7 +372,7 @@ export default function ComplianceGrid({
       },
     },
     {
-      headerName: t("turbolens_security_compliance_filter_severity"),
+      headerName: t("compliance_filter_severity"),
       field: "severity",
       width: 120,
       cellRenderer: (p: ICellRendererParams<TurboLensComplianceFinding, string>) =>
@@ -380,12 +380,12 @@ export default function ComplianceGrid({
           <Chip
             size="small"
             color={severityChipColor(p.value as TurboLensComplianceFinding["severity"])}
-            label={t(`turbolens_security_severity_${p.value}`)}
+            label={t(`compliance_severity_${p.value}`)}
           />
         ) : null,
     },
     {
-      headerName: t("turbolens_security_compliance_filter_status"),
+      headerName: t("compliance_filter_status"),
       field: "status",
       width: 170,
       cellRenderer: (p: ICellRendererParams<TurboLensComplianceFinding, string>) =>
@@ -393,7 +393,7 @@ export default function ComplianceGrid({
           <Chip
             size="small"
             color={complianceStatusColor(p.value as ComplianceStatus)}
-            label={t(`turbolens_security_compliance_status_${p.value}`)}
+            label={t(`compliance_status_${p.value}`)}
           />
         ) : null,
     },
@@ -426,7 +426,7 @@ export default function ComplianceGrid({
               size="small"
               variant="outlined"
               color={complianceDecisionColor(p.value as ComplianceDecision)}
-              label={t(`turbolens_security_compliance_decision_${p.value}`)}
+              label={t(`compliance_decision_${p.value}`)}
             />
           </Tooltip>
         ) : null,
@@ -436,14 +436,14 @@ export default function ComplianceGrid({
       field: "ai_detected",
       width: 90,
       headerComponent: AiHeader,
-      headerComponentParams: { tooltip: t("turbolens_security_compliance_ai_detected_help") },
+      headerComponentParams: { tooltip: t("compliance_ai_detected_help") },
       cellRenderer: (p: ICellRendererParams<TurboLensComplianceFinding, boolean>) => {
         const f = p.data;
         if (!f) return null;
         // Confirmed AI by user verdict — green check.
         if (f.card_has_ai_features === true) {
           return (
-            <Tooltip title={t("turbolens_security_compliance_ai_confirmed")}>
+            <Tooltip title={t("compliance_ai_confirmed")}>
               <Box sx={{ display: "inline-flex" }}>
                 <MaterialSymbol
                   icon="check_circle"
@@ -457,7 +457,7 @@ export default function ComplianceGrid({
         // Confirmed NOT AI — strikethrough psychology icon.
         if (f.card_has_ai_features === false) {
           return (
-            <Tooltip title={t("turbolens_security_compliance_ai_rejected")}>
+            <Tooltip title={t("compliance_ai_rejected")}>
               <Box sx={{ display: "inline-flex" }}>
                 <MaterialSymbol
                   icon="cancel"
@@ -471,7 +471,7 @@ export default function ComplianceGrid({
         // Scanner flagged it, no user verdict yet — yellow "needs review".
         if (f.ai_detected) {
           return (
-            <Tooltip title={t("turbolens_security_compliance_ai_detected_help")}>
+            <Tooltip title={t("compliance_ai_detected_help")}>
               <Box sx={{ display: "inline-flex" }}>
                 <MaterialSymbol
                   icon="psychology"
@@ -500,7 +500,7 @@ export default function ComplianceGrid({
       valueFormatter: (p) => (p.value ? formatDate(p.value as string) : ""),
     },
     // Delete action — admin-grade (canManage gates rendering, the
-    // endpoint additionally enforces security_compliance.manage).
+    // endpoint additionally enforces compliance.manage).
     ...(canManage && onDelete
       ? [
           {

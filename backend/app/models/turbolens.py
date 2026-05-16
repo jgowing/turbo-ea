@@ -141,7 +141,7 @@ class TurboLensComplianceFinding(UUIDMixin, TimestampMixin, Base):
     Risk's audit trail isn't broken.
     """
 
-    __tablename__ = "turbolens_compliance_findings"
+    __tablename__ = "compliance_findings"
 
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -186,19 +186,19 @@ class TurboLensComplianceFinding(UUIDMixin, TimestampMixin, Base):
 
     __table_args__ = (
         Index(
-            "ix_turbolens_compliance_findings_regulation_status",
+            "ix_compliance_findings_regulation_status",
             "regulation",
             "status",
         ),
-        Index("ix_turbolens_compliance_findings_card_id", "card_id"),
-        Index("ix_turbolens_compliance_findings_run_id", "run_id"),
-        Index("ix_turbolens_compliance_findings_risk_id", "risk_id"),
+        Index("ix_compliance_findings_card_id", "card_id"),
+        Index("ix_compliance_findings_run_id", "run_id"),
+        Index("ix_compliance_findings_risk_id", "risk_id"),
         Index(
-            "ix_turbolens_compliance_findings_finding_key",
+            "ix_compliance_findings_finding_key",
             "finding_key",
         ),
         Index(
-            "ix_turbolens_compliance_findings_decision",
+            "ix_compliance_findings_decision",
             "decision",
         ),
     )

@@ -693,7 +693,7 @@ async def promote_compliance(
     user: User = Depends(get_current_user),
 ) -> RiskOut:
     await PermissionService.require_permission(db, user, "risks.manage")
-    await PermissionService.require_permission(db, user, "security_compliance.view")
+    await PermissionService.require_permission(db, user, "compliance.view")
     try:
         fid = uuid.UUID(finding_id)
     except ValueError as exc:

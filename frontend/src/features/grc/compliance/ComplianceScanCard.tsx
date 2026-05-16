@@ -1,5 +1,5 @@
 /**
- * SecurityScanCard — one-scan status card with progress bar, trigger button
+ * ComplianceScanCard — one-scan status card with progress bar, trigger button
  * and optional per-scan settings (e.g. regulation checkboxes for compliance).
  */
 import { ReactNode } from "react";
@@ -14,13 +14,13 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { formatDateTimeWith, getCachedDateFormat } from "@/hooks/useDateFormat";
-import type { SecurityScanRun } from "@/types";
+import type { ComplianceScanRun } from "@/types";
 
 interface Props {
   title: string;
   description: string;
   icon: string;
-  run: SecurityScanRun | null;
+  run: ComplianceScanRun | null;
   running: boolean;
   onRun: () => void;
   buttonLabel: string;
@@ -37,7 +37,7 @@ function formatTimestamp(iso: string | null | undefined): string {
   return formatDateTimeWith(getCachedDateFormat(), iso) || iso;
 }
 
-export default function SecurityScanCard({
+export default function ComplianceScanCard({
   title,
   description,
   icon,
@@ -133,12 +133,12 @@ export default function SecurityScanCard({
           {run?.completed_at ? (
             <>
               <Typography variant="caption" color="text.secondary">
-                {t("turbolens_security_last_scan")}: {formatTimestamp(run.completed_at)}
+                {t("compliance_last_scan")}: {formatTimestamp(run.completed_at)}
               </Typography>
               {run.status === "failed" && run.error && (
                 <Tooltip title={run.error}>
                   <Typography variant="caption" color="error.main">
-                    {t("turbolens_security_scan_failed")}
+                    {t("compliance_scan_failed")}
                   </Typography>
                 </Tooltip>
               )}

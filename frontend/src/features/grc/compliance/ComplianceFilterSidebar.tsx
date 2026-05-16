@@ -311,7 +311,7 @@ export default function ComplianceFilterSidebar({
       {tab === 0 ? (
         <>
         <SectionHeader
-          label={t("turbolens_security_compliance_filter_status")}
+          label={t("compliance_filter_status")}
           icon="verified"
           expanded={expanded.status}
           onToggle={() => toggleSection("status")}
@@ -321,7 +321,7 @@ export default function ComplianceFilterSidebar({
           <CheckboxList
             items={STATUSES.map((s) => ({
               key: s,
-              label: t(`turbolens_security_compliance_status_${s}`),
+              label: t(`compliance_status_${s}`),
               color: STATUS_HEX[s],
               checked: filters.statuses.has(s),
               onToggle: () =>
@@ -331,7 +331,7 @@ export default function ComplianceFilterSidebar({
         </Collapse>
 
         <SectionHeader
-          label={t("turbolens_security_compliance_filter_severity")}
+          label={t("compliance_filter_severity")}
           icon="flag"
           expanded={expanded.severity}
           onToggle={() => toggleSection("severity")}
@@ -341,7 +341,7 @@ export default function ComplianceFilterSidebar({
           <CheckboxList
             items={SEVERITIES.map((s) => ({
               key: s,
-              label: t(`turbolens_security_severity_${s}`),
+              label: t(`compliance_severity_${s}`),
               color: SEVERITY_HEX[s],
               checked: filters.severities.has(s),
               onToggle: () =>
@@ -364,7 +364,7 @@ export default function ComplianceFilterSidebar({
           <CheckboxList
             items={LIFECYCLE_STATES.map((d) => ({
               key: d,
-              label: t(`turbolens_security_compliance_decision_${d}`),
+              label: t(`compliance_decision_${d}`),
               color: COMPLIANCE_LIFECYCLE_COLORS[d],
               checked: filters.decisions.has(d),
               onToggle: () =>
@@ -416,14 +416,14 @@ export default function ComplianceFilterSidebar({
             items={[
               {
                 key: "ai_only",
-                label: t("turbolens_security_compliance_filter_ai_only"),
+                label: t("compliance_filter_ai_only"),
                 checked: filters.aiOnly,
                 onToggle: () =>
                   onFiltersChange({ ...filters, aiOnly: !filters.aiOnly }),
               },
               {
                 key: "ai_confirmed_only",
-                label: t("turbolens_security_compliance_filter_ai_confirmed_only"),
+                label: t("compliance_filter_ai_confirmed_only"),
                 checked: filters.aiConfirmedOnly,
                 onToggle: () =>
                   onFiltersChange({
@@ -433,7 +433,7 @@ export default function ComplianceFilterSidebar({
               },
               {
                 key: "include_resolved",
-                label: t("turbolens_security_compliance_filter_include_resolved"),
+                label: t("compliance_filter_include_resolved"),
                 checked: filters.includeResolved,
                 onToggle: () =>
                   onFiltersChange({

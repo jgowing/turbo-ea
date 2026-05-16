@@ -256,7 +256,7 @@ def _detect_intent_patterns(requirement: str) -> list[str]:
         ("erp_integration", r"erp|sap|finance|supply.?chain|warehouse|inventory|logistics"),
         ("customer_portal", r"portal|customer|self.?service|onboard|crm|salesforce"),
         ("observability", r"monitor|observ|alert|log|trace|apm|perform"),
-        ("security_compliance", r"security|compliance|gdpr|pci|iso|audit|encrypt"),
+        ("compliance", r"security|compliance|gdpr|pci|iso|audit|encrypt"),
     ]
 
     for name, pattern in checks:

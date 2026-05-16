@@ -169,7 +169,7 @@ export default function ComplianceTab({ cardId }: Props) {
                     variant="outlined"
                     label={
                       regulationsByKey[f.regulation]?.label ??
-                      tAdmin(`turbolens_security_regulation_${f.regulation}`, {
+                      tAdmin(`compliance_regulation_${f.regulation}`, {
                         defaultValue: f.regulation,
                       })
                     }
@@ -181,7 +181,7 @@ export default function ComplianceTab({ cardId }: Props) {
                     size="small"
                     color={complianceStatusColor(f.status)}
                     label={tAdmin(
-                      `turbolens_security_compliance_status_${f.status}`,
+                      `compliance_status_${f.status}`,
                     )}
                   />
                 </TableCell>
@@ -190,7 +190,7 @@ export default function ComplianceTab({ cardId }: Props) {
                     size="small"
                     variant="outlined"
                     label={tAdmin(
-                      `turbolens_security_severity_${f.severity}`,
+                      `compliance_severity_${f.severity}`,
                     )}
                   />
                 </TableCell>
@@ -199,7 +199,7 @@ export default function ComplianceTab({ cardId }: Props) {
                     title={
                       f.review_note ||
                       tAdmin(
-                        `turbolens_security_compliance_decision_help_${f.decision}`,
+                        `compliance_decision_help_${f.decision}`,
                       )
                     }
                   >
@@ -211,7 +211,7 @@ export default function ComplianceTab({ cardId }: Props) {
                         ) : undefined
                       }
                       label={tAdmin(
-                        `turbolens_security_compliance_decision_${f.decision}`,
+                        `compliance_decision_${f.decision}`,
                       )}
                       sx={{
                         bgcolor:
