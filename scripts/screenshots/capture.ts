@@ -286,7 +286,12 @@ async function executeActions(
   for (const action of actions) {
     switch (action.type) {
       case "scroll":
-        if (action.target === "bottom") {
+        if (typeof action.pixels === "number") {
+          // Absolute pixel scroll — use when neither "bottom" nor a selector
+          // give us the right framing.
+          const y = action.pixels;
+          await page.evaluate((py) => window.scrollTo(0, py), y);
+        } else if (action.target === "bottom") {
           await page.evaluate(() =>
             window.scrollTo(0, document.body.scrollHeight)
           );
@@ -304,11 +309,16 @@ async function executeActions(
 
       case "click":
         try {
-          // Try each comma-separated selector (fallback chain)
+          // Try each comma-separated selector (fallback chain). The optional
+          // `nth` field picks the Nth match of the *first* selector that
+          // resolves — useful when a page has multiple identical widgets
+          // (e.g. two MUI Select dropdowns).
           const selectors = action.selector.split(",").map((s) => s.trim());
           let clicked = false;
           for (const sel of selectors) {
-            const loc = page.locator(sel).first();
+            const base = page.locator(sel);
+            const loc =
+              typeof action.nth === "number" ? base.nth(action.nth) : base.first();
             if ((await loc.count()) > 0) {
               await loc.click({ timeout: 3000 });
               clicked = true;
@@ -396,6 +406,13 @@ async function capturePage(
   if (pageDef.actions) {
     await executeActions(page, pageDef.actions);
   }
+
+  // Baseline settling wait — guarantees at least 2s between the page reaching
+  // its final state and the screenshot capture, so loading spinners, MUI
+  // ripples, chart animations, AG Grid row entry transitions, and lazy-loaded
+  // images all settle even when a page's `actions` list doesn't include an
+  // explicit `wait`. Per-page `actions` may add additional waits on top.
+  await page.waitForTimeout(2000);
 
   // Determine filename
   const filename = (pageDef.filenames[locale] || pageDef.id) + ".png";
