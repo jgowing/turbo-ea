@@ -7,7 +7,7 @@ to a single initiative) and link to zero-or-many Cards via the
 ``risk_cards`` junction, so a single risk can aggregate impact across
 multiple applications or IT components.
 
-Risks can be created manually or **promoted** from a TurboLens CVE /
+Risks can be created manually or **promoted** from a TurboLens
 compliance finding (see ``app.services.risk_service.promote_*``). The
 originating finding carries an optional ``risk_id`` back-link so the UI
 can show "Open risk R-000123" instead of "Create risk" once promoted.

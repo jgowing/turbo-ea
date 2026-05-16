@@ -7976,7 +7976,6 @@
           "source_type": {
             "enum": [
               "manual",
-              "security_cve",
               "security_compliance"
             ],
             "title": "Source Type",
