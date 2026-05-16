@@ -99,7 +99,7 @@ export default function ComplianceLifecycleTimeline({
     setErr(null);
     try {
       const updated = await api.patch<TurboLensComplianceFinding>(
-        `/turbolens/security/compliance-findings/${finding.id}`,
+        `/compliance/compliance-findings/${finding.id}`,
         { decision: to },
       );
       onUpdated(updated);

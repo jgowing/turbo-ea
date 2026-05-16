@@ -1,5 +1,5 @@
 /**
- * TurboLensSecurity — on-demand compliance scan.
+ * ComplianceScanner — on-demand compliance scan.
  *
  * Mirrors the Duplicates / Vendors pattern: trigger via POST, poll the
  * analysis run, then reload findings. Two inner sub-tabs: Overview
@@ -52,7 +52,7 @@ import {
   seedFromCompliance,
 } from "@/features/grc/risk/riskDefaults";
 import { useNavigate } from "react-router-dom";
-import SecurityScanCard from "./SecurityScanCard";
+import ComplianceScanCard from "./ComplianceScanCard";
 import { useAnalysisPolling } from "./useAnalysisPolling";
 
 /**
@@ -144,7 +144,7 @@ function exportComplianceToCsv(
   URL.revokeObjectURL(url);
 }
 
-export default function TurboLensSecurity() {
+export default function ComplianceScanner() {
   const { t } = useTranslation("admin");
   const { t: tCards } = useTranslation("cards");
   const navigate = useNavigate();
@@ -280,7 +280,7 @@ export default function TurboLensSecurity() {
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
     try {
-      const data = await api.get<TurboLensSecurityOverview>("/turbolens/security/overview");
+      const data = await api.get<TurboLensSecurityOverview>("/compliance/overview");
       setOverview(data);
     } catch (e) {
       setOverview(null);
@@ -294,7 +294,7 @@ export default function TurboLensSecurity() {
     setComplianceLoading(true);
     try {
       const data = await api.get<TurboLensComplianceBundle[]>(
-        "/turbolens/security/compliance",
+        "/compliance/compliance",
       );
       setCompliance(data);
     } catch {
@@ -338,7 +338,7 @@ export default function TurboLensSecurity() {
     (async () => {
       try {
         const active = await api.get<SecurityActiveRuns>(
-          "/turbolens/security/active-runs",
+          "/compliance/active-runs",
         );
         if (cancelled) return;
         if (active.compliance?.id) startCompliancePoll(active.compliance.id);
@@ -362,7 +362,7 @@ export default function TurboLensSecurity() {
     }
     try {
       const res = await api.post<{ run_id: string }>(
-        "/turbolens/security/compliance-scan",
+        "/compliance/compliance-scan",
         { regulations: Array.from(selectedRegs) },
       );
       setInfo(t("turbolens_security_compliance_scan_started"));
@@ -450,7 +450,7 @@ export default function TurboLensSecurity() {
     ) => {
       try {
         const updated = await api.patch<TurboLensComplianceFinding>(
-          `/turbolens/security/compliance-findings/${finding.id}`,
+          `/compliance/compliance-findings/${finding.id}`,
           {
             decision,
             ...(note !== undefined ? { review_note: note } : {}),
@@ -640,7 +640,7 @@ export default function TurboLensSecurity() {
     return (
       <Stack spacing={3}>
         {turboLensAiConfigured ? (
-          <SecurityScanCard
+          <ComplianceScanCard
             title={t("turbolens_security_compliance_scan_title")}
             description={t("turbolens_security_compliance_scan_description")}
             icon="verified"
@@ -690,7 +690,7 @@ export default function TurboLensSecurity() {
                 ))}
               </FormGroup>
             )}
-          </SecurityScanCard>
+          </ComplianceScanCard>
         ) : (
           <Alert severity="info">
             {t("turbolens_security_ai_not_configured_register_still_available")}
@@ -882,7 +882,7 @@ export default function TurboLensSecurity() {
           }
           onDelete={async (f) => {
             try {
-              await api.delete(`/turbolens/security/compliance-findings/${f.id}`);
+              await api.delete(`/compliance/compliance-findings/${f.id}`);
               setCompliance((prev) =>
                 prev.map((b) =>
                   b.regulation === f.regulation
@@ -902,7 +902,7 @@ export default function TurboLensSecurity() {
               const result = await api.delete<{
                 updated: number;
                 skipped: { id: string; reason: string }[];
-              }>("/turbolens/security/compliance-findings/bulk", { ids });
+              }>("/compliance/compliance-findings/bulk", { ids });
               // Optimistic-but-safe: just reload — bulk ops can affect
               // many rows across regulations and the server's partial-success
               // contract means we can't easily compute the new state locally.
@@ -918,7 +918,7 @@ export default function TurboLensSecurity() {
               const result = await api.patch<{
                 updated: number;
                 skipped: { id: string; reason: string }[];
-              }>("/turbolens/security/compliance-findings/bulk", {
+              }>("/compliance/compliance-findings/bulk", {
                 ids,
                 decision,
                 review_note: reviewNote,

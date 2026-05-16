@@ -3,8 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { AiStatus, User } from "@/types";
 
-vi.mock("@/features/turbolens/TurboLensSecurity", () => ({
-  default: () => <div data-testid="turbolens-security" />,
+vi.mock("@/features/grc/compliance/ComplianceScanner", () => ({
+  default: () => <div data-testid="compliance-scanner" />,
 }));
 
 vi.mock("@/hooks/useAiStatus", () => ({
@@ -73,14 +73,14 @@ describe("ComplianceTab", () => {
     setAiStatus(true);
     renderWith(adminUser());
     await waitFor(() =>
-      expect(screen.getByTestId("turbolens-security")).toBeInTheDocument(),
+      expect(screen.getByTestId("compliance-scanner")).toBeInTheDocument(),
     );
   });
 
   it("blocks the scanner with a configure CTA when AI is not configured (admin)", () => {
     setAiStatus(false);
     renderWith(adminUser());
-    expect(screen.queryByTestId("turbolens-security")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("compliance-scanner")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /AI provider.*not configured/i }),
     ).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe("ComplianceTab", () => {
   it("shows the 'contact administrator' hint to non-admins", () => {
     setAiStatus(false);
     renderWith(memberUser());
-    expect(screen.queryByTestId("turbolens-security")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("compliance-scanner")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /configure/i })).not.toBeInTheDocument();
     expect(screen.getByText(/administrator/i)).toBeInTheDocument();
   });

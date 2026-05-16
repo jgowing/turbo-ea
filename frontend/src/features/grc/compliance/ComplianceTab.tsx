@@ -12,7 +12,7 @@ import { useAuthContext } from "@/hooks/AuthContext";
 import { useAiStatus } from "@/hooks/useAiStatus";
 import { SEVERITY_COLORS } from "@/theme/tokens";
 
-const TurboLensSecurity = lazy(() => import("@/features/turbolens/TurboLensSecurity"));
+const ComplianceScanner = lazy(() => import("./ComplianceScanner"));
 
 /**
  * GRC > Compliance tab.
@@ -81,7 +81,7 @@ export default function ComplianceTab() {
         </Box>
       }
     >
-      <TurboLensSecurity />
+      <ComplianceScanner />
     </Suspense>
   );
 }

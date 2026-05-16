@@ -1,5 +1,5 @@
 /**
- * SecurityScanCard — one-scan status card with progress bar, trigger button
+ * ComplianceScanCard — one-scan status card with progress bar, trigger button
  * and optional per-scan settings (e.g. regulation checkboxes for compliance).
  */
 import { ReactNode } from "react";
@@ -37,7 +37,7 @@ function formatTimestamp(iso: string | null | undefined): string {
   return formatDateTimeWith(getCachedDateFormat(), iso) || iso;
 }
 
-export default function SecurityScanCard({
+export default function ComplianceScanCard({
   title,
   description,
   icon,

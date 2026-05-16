@@ -84,7 +84,7 @@ export default function FindingDetailDrawer({
     setErr(null);
     try {
       const updated = await api.post<TurboLensComplianceFinding>(
-        `/turbolens/security/compliance-findings/${finding.id}/ai-verdict`,
+        `/compliance/compliance-findings/${finding.id}/ai-verdict`,
         { verdict },
       );
       onUpdated?.(updated);

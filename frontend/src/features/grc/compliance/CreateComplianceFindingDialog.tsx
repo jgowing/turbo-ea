@@ -2,7 +2,7 @@
  * CreateComplianceFindingDialog — manual compliance finding entry.
  *
  * Used by auditors / GRC analysts to log a finding the scanner didn't
- * pick up. Backed by ``POST /turbolens/security/compliance-findings``;
+ * pick up. Backed by ``POST /compliance/compliance-findings``;
  * the new finding lands at ``decision='new'`` so it joins the normal
  * lifecycle.
  */
@@ -127,7 +127,7 @@ export default function CreateComplianceFindingDialog({
     setError(null);
     try {
       const created = await api.post<TurboLensComplianceFinding>(
-        "/turbolens/security/compliance-findings",
+        "/compliance/compliance-findings",
         {
           regulation,
           regulation_article: regulationArticle.trim() || null,

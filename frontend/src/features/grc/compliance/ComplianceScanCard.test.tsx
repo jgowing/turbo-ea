@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SecurityScanCard from "./SecurityScanCard";
+import ComplianceScanCard from "./ComplianceScanCard";
 import type { SecurityScanRun } from "@/types";
 
-function renderCard(props: Partial<Parameters<typeof SecurityScanCard>[0]>) {
-  const defaults: Parameters<typeof SecurityScanCard>[0] = {
+function renderCard(props: Partial<Parameters<typeof ComplianceScanCard>[0]>) {
+  const defaults: Parameters<typeof ComplianceScanCard>[0] = {
     title: "Compliance scan",
     description: "Scan description",
     icon: "shield",
@@ -17,10 +17,10 @@ function renderCard(props: Partial<Parameters<typeof SecurityScanCard>[0]>) {
     neverScannedLabel: "No scan yet",
     phaseLabel: (p) => p,
   };
-  return render(<SecurityScanCard {...defaults} {...props} />);
+  return render(<ComplianceScanCard {...defaults} {...props} />);
 }
 
-describe("SecurityScanCard", () => {
+describe("ComplianceScanCard", () => {
   it("renders the 'never scanned' label when there is no completed run", () => {
     renderCard({});
     expect(screen.getByText("No scan yet")).toBeInTheDocument();
