@@ -23,7 +23,11 @@ Cuando la IA está configurada y los análisis de portafolio están habilitados 
 
 ## Portafolio flexible
 
+![Portafolio flexible — portafolio de Objetos de Datos agrupado por Aplicación y coloreado por Sensibilidad de Datos](../assets/img/es/57_informe_portafolio_flexible.png)
+
 El **Portafolio flexible** usa los mismos controles que el Portafolio de aplicaciones pero añade un selector de **Tipo de tarjeta** en la parte superior de la barra de herramientas. Permite analizar un portafolio de Capacidades de Negocio, Iniciativas, Componentes de TI o cualquier otro tipo de tarjeta visible con la misma experiencia de agrupación, coloreado y filtros.
+
+La captura muestra un caso de uso típico: elija **Objeto de Datos** como tipo de tarjeta, **Agrupar por → Aplicación** para ver qué aplicación posee qué datos y **Colorear por → Sensibilidad de Datos** para identificar de un vistazo dónde residen los datos confidenciales.
 
 Cambiar el tipo de tarjeta restablece las selecciones de agrupación, color y filtros (hacen referencia a claves de campo que no existen en el nuevo tipo) y el informe se recarga con los campos, relaciones y etiquetas aplicables al tipo elegido. El informe comparte el mismo permiso que el Portafolio de aplicaciones (`reports.portfolio`) y se guarda de forma independiente.
 

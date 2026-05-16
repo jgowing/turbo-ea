@@ -23,7 +23,11 @@ Lorsque l'IA est configurée et que les analyses de portefeuille sont activées 
 
 ## Portefeuille flexible
 
+![Portefeuille flexible — portefeuille d'Objets de données regroupé par Application et coloré par Sensibilité des données](../assets/img/fr/57_rapport_portefeuille_flexible.png)
+
 Le **Portefeuille flexible** utilise les mêmes contrôles que le Portefeuille applicatif mais ajoute un sélecteur **Type de carte** en haut de la barre d'outils. Il permet d'analyser un portefeuille de Capacités métier, d'Initiatives, de Composants IT ou de tout autre type de carte visible avec la même expérience de regroupement, de coloration et de filtrage.
+
+La capture ci-dessus illustre un cas d'usage typique : choisissez **Objet de données** comme type de carte, **Regrouper par → Application** pour voir quelle application détient quelles données, et **Colorier par → Sensibilité des données** pour repérer d'un coup d'œil où se trouvent les données confidentielles.
 
 Changer de type de carte réinitialise les sélections de regroupement, de coloration et de filtres (elles référencent des clés de champs qui n'existent pas sur le nouveau type) et le rapport est rechargé avec les champs, relations et tags applicables au type choisi. Le rapport partage la même permission que le Portefeuille applicatif (`reports.portfolio`) et est enregistré indépendamment.
 

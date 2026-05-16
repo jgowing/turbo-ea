@@ -1341,6 +1341,43 @@ export const DOC_PAGES: PageDef[] = [
       ru: "56_kartochka_sootvetstvie_tab",
     },
   },
+  {
+    // Flexible Portfolio — companion to entry 10 (Application Portfolio).
+    // Showcases the card-type picker: Data Object portfolio grouped by
+    // Application, coloured by Data Sensitivity.
+    id: "57_report_flexible_portfolio",
+    route: "/reports/flexible-portfolio",
+    waitFor: "[role='combobox']",
+    actions: [
+      { type: "wait", ms: 800 },
+      // 1. Card type → DataObject (1st combobox; only present on the
+      //    Flexible Portfolio, not the Application Portfolio).
+      { type: "click", selector: "[role='combobox']", nth: 0 },
+      { type: "wait", ms: 300 },
+      { type: "click", selector: "li[data-value='DataObject']" },
+      { type: "wait", ms: 1200 },
+      // 2. Group by → rel:Application (now the 2nd combobox).
+      { type: "click", selector: "[role='combobox']", nth: 1 },
+      { type: "wait", ms: 300 },
+      { type: "click", selector: "li[data-value='rel:Application']" },
+      { type: "wait", ms: 300 },
+      // 3. Color by → dataSensitivity (3rd combobox).
+      { type: "click", selector: "[role='combobox']", nth: 2 },
+      { type: "wait", ms: 300 },
+      { type: "click", selector: "li[data-value='dataSensitivity']" },
+      { type: "wait", ms: 1800 },
+    ],
+    filenames: {
+      en: "57_report_flexible_portfolio",
+      de: "57_bericht_flexibles_portfolio",
+      fr: "57_rapport_portefeuille_flexible",
+      es: "57_informe_portafolio_flexible",
+      it: "57_report_portfolio_flessibile",
+      pt: "57_relatorio_portfolio_flexivel",
+      zh: "57_report_flexible_portfolio",
+      ru: "57_otchet_gibkoe_portfolio",
+    },
+  },
 
 ];
 
