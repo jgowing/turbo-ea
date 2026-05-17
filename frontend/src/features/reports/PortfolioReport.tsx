@@ -1186,7 +1186,11 @@ export default function PortfolioReport({
           <TextField
             select
             size="small"
-            label={t("portfolio.colorAppsBy")}
+            label={
+              cardType === "Application"
+                ? t("portfolio.colorAppsBy")
+                : t("common.colorBy")
+            }
             value={colorBy}
             onChange={(e) => setColorBy(e.target.value)}
             sx={{ minWidth: 180 }}
