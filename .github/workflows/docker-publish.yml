@@ -5,6 +5,12 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
   workflow_dispatch:
+  # Weekly fresh rebuild so apk-package CVEs in the alpine bases are picked
+  # up even during code-quiet weeks. Combined with `no-cache` below, this
+  # guarantees `apk upgrade --no-cache` actually re-runs against the live
+  # alpine repos instead of reusing a cached layer.
+  schedule:
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -77,6 +83,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # Bypass build cache on scheduled and manual runs so `apk upgrade`
+          # actually re-runs against fresh alpine repos. Regular push builds
+          # keep the cache for speed (~1m vs ~14m).
+          no-cache: ${{ github.event_name != 'push' }}
           provenance: true
           sbom: true
 
