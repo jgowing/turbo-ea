@@ -1,28 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import LinearProgress from "@mui/material/LinearProgress";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { api } from "@/api/client";
 import type { SavedReport } from "@/types";
-import {
-  REPORT_TYPE_STYLE,
-  getReportTypeLabels,
-} from "@/features/reports/savedReportStyles";
+import { REPORT_TYPE_STYLE } from "@/features/reports/savedReportStyles";
 import SectionPaper, { EmptyState, ViewAllLink } from "./SectionPaper";
 
-const MAX_VISIBLE = 8;
+const MAX_VISIBLE = 6;
+const THUMB_HEIGHT = 72;
 
 export default function MySavedReportsSection() {
   const { t } = useTranslation(["common", "reports"]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<SavedReport[]>([]);
-
-  const reportTypeLabels = useMemo(() => getReportTypeLabels(t), [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,52 +51,84 @@ export default function MySavedReportsSection() {
       icon="bookmarks"
       iconColor="#1976d2"
       title={t("common:dashboard.workspace.mySavedReports")}
-      action={
-        <ViewAllLink to="/reports/saved" label={t("common:actions.viewAll")} />
-      }
+      action={<ViewAllLink to="/reports/saved" label={t("common:actions.viewAll")} />}
     >
       {loading ? (
         <LinearProgress />
       ) : reports.length === 0 ? (
         <EmptyState message={t("common:dashboard.workspace.empty.savedReports")} />
       ) : (
-        <Box>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+            gap: 1.25,
+          }}
+        >
           {reports.map((report) => {
             const style = REPORT_TYPE_STYLE[report.report_type];
-            const typeLabel = reportTypeLabels[report.report_type] || report.report_type;
+            const fallbackColor = style?.color ?? "#9e9e9e";
+            const fallbackIcon = style?.icon ?? "analytics";
             return (
-              <Box
-                key={report.id}
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  py: 0.75,
-                  px: 1,
-                  borderRadius: 1,
-                  cursor: style ? "pointer" : "default",
-                  "&:hover": style ? { bgcolor: "action.hover" } : undefined,
-                }}
-                onClick={() => style && handleOpen(report)}
-              >
-                <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
-                  {report.name}
-                </Typography>
-                {style && (
-                  <Chip
-                    icon={<MaterialSymbol icon={style.icon} size={14} />}
-                    label={typeLabel}
-                    size="small"
-                    sx={{
-                      height: 22,
-                      fontSize: "0.7rem",
-                      bgcolor: `${style.color}14`,
-                      color: style.color,
-                      fontWeight: 600,
-                    }}
-                  />
-                )}
-              </Box>
+              <Tooltip key={report.id} title={report.name} placement="top" arrow>
+                <Box
+                  onClick={() => style && handleOpen(report)}
+                  sx={{
+                    cursor: style ? "pointer" : "default",
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    transition: "border-color 120ms, transform 120ms",
+                    "&:hover": style
+                      ? { borderColor: fallbackColor, transform: "translateY(-1px)" }
+                      : undefined,
+                  }}
+                >
+                  {report.thumbnail ? (
+                    <Box
+                      component="img"
+                      src={report.thumbnail}
+                      alt={report.name}
+                      sx={{
+                        width: "100%",
+                        height: THUMB_HEIGHT,
+                        objectFit: "cover",
+                        display: "block",
+                        bgcolor: "action.hover",
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: "100%",
+                        height: THUMB_HEIGHT,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: `${fallbackColor}10`,
+                      }}
+                    >
+                      <MaterialSymbol icon={fallbackIcon} size={28} color={`${fallbackColor}80`} />
+                    </Box>
+                  )}
+                  <Box sx={{ px: 0.75, py: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontWeight: 600,
+                        lineHeight: 1.25,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {report.name}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Tooltip>
             );
           })}
         </Box>

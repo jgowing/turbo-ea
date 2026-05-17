@@ -86,6 +86,9 @@ export default function WorkspaceTab() {
           <MyFavoritesSection />
         </Grid>
         <Grid item xs={12} md={6}>
+          <MySavedReportsSection />
+        </Grid>
+        <Grid item xs={12} md={6}>
           <MyRolesSection />
         </Grid>
         <Grid item xs={12} md={6}>
@@ -99,9 +102,6 @@ export default function WorkspaceTab() {
         </Grid>
         <Grid item xs={12} md={6}>
           <MyCreatedSection createdCount={counters.created_count} />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <MySavedReportsSection />
         </Grid>
       </Grid>
     </Box>
