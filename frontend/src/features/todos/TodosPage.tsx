@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -12,26 +12,61 @@ import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Badge from "@mui/material/Badge";
 import Alert from "@mui/material/Alert";
 import CircularProgress from "@mui/material/CircularProgress";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import { api } from "@/api/client";
+import { useDateFormat } from "@/hooks/useDateFormat";
 import type { Todo, MySurveyItem } from "@/types";
 
+function compareByDueDateAsc(a: Todo, b: Todo): number {
+  // Sort by due date ascending so the most urgent items (overdue first,
+  // then nearest due) land at the top. Rows without a due date go last.
+  if (!a.due_date && !b.due_date) return 0;
+  if (!a.due_date) return 1;
+  if (!b.due_date) return -1;
+  return a.due_date.localeCompare(b.due_date);
+}
+
+function isOverdue(todo: Todo): boolean {
+  if (todo.status !== "open" || !todo.due_date) return false;
+  // due_date is an ISO date (YYYY-MM-DD); compare against today in the
+  // user's local timezone using the same YYYY-MM-DD shape.
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  return todo.due_date.slice(0, 10) < todayStr;
+}
+
 /* ── Todos sub-panel ─────────────────────────────────────────────────── */
+
+type StatusFilter = "open" | "done" | "all";
 
 function TodosPanel() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
+  const { formatDate } = useDateFormat();
   const [todos, setTodos] = useState<Todo[]>([]);
+  // tab 0 = Assigned to me · tab 1 = Created by me. Each tab keeps its
+  // own status filter so switching back and forth doesn't reset the view.
   const [tab, setTab] = useState(0);
+  const [assignedStatus, setAssignedStatus] = useState<StatusFilter>("open");
+  const [createdStatus, setCreatedStatus] = useState<StatusFilter>("open");
+
+  const currentStatus = tab === 0 ? assignedStatus : createdStatus;
+  const setCurrentStatus = tab === 0 ? setAssignedStatus : setCreatedStatus;
 
   useEffect(() => {
-    const params = tab === 0 ? "?status=open" : tab === 1 ? "?status=done" : "";
-    api.get<Todo[]>(`/todos${params}`).then(setTodos);
-  }, [tab]);
+    const scope = tab === 0 ? "assigned_only=true" : "created_only=true";
+    const statusParam = currentStatus !== "all" ? `&status=${currentStatus}` : "";
+    api.get<Todo[]>(`/todos?${scope}${statusParam}`).then(setTodos);
+  }, [tab, currentStatus]);
+
+  const sortedTodos = useMemo(() => [...todos].sort(compareByDueDateAsc), [todos]);
+  const showAssignee = tab === 1;
 
   const toggleStatus = async (todo: Todo) => {
     const newStatus = todo.status === "open" ? "done" : "open";
@@ -54,13 +89,25 @@ function TodosPanel() {
   return (
     <>
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label={t("todos.tabs.open")} />
-        <Tab label={t("todos.tabs.done")} />
-        <Tab label={t("todos.tabs.all")} />
+        <Tab label={t("todos.tabs.assignedToMe")} />
+        <Tab label={t("todos.tabs.createdByMe")} />
       </Tabs>
 
+      <Box sx={{ mb: 2 }}>
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={currentStatus}
+          onChange={(_, v: StatusFilter | null) => v && setCurrentStatus(v)}
+        >
+          <ToggleButton value="open">{t("todos.tabs.open")}</ToggleButton>
+          <ToggleButton value="done">{t("todos.tabs.done")}</ToggleButton>
+          <ToggleButton value="all">{t("todos.tabs.all")}</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+
       <List>
-        {todos.map((todo) => (
+        {sortedTodos.map((todo) => (
           <Card key={todo.id} sx={{ mb: 1 }}>
             <ListItem>
               {todo.is_system ? (
@@ -108,6 +155,14 @@ function TodosPanel() {
                 }
                 secondary={
                   <Box sx={{ display: "flex", gap: 1, mt: 0.5, alignItems: "center" }}>
+                    {isOverdue(todo) && (
+                      <Chip
+                        size="small"
+                        label={t("todos.overdue")}
+                        color="error"
+                        sx={{ height: 20, fontSize: "0.7rem", fontWeight: 600 }}
+                      />
+                    )}
                     {todo.is_system && (
                       <Chip
                         size="small"
@@ -125,8 +180,23 @@ function TodosPanel() {
                         sx={{ cursor: "pointer" }}
                       />
                     )}
+                    {showAssignee && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        icon={<MaterialSymbol icon="person" size={14} />}
+                        label={
+                          todo.assignee_name
+                            ? t("todos.assignedTo", { name: todo.assignee_name })
+                            : t("todos.unassigned")
+                        }
+                        sx={{ height: 20, fontSize: "0.7rem" }}
+                      />
+                    )}
                     {todo.due_date && (
-                      <Typography variant="caption">{t("todos.dueDate", { date: todo.due_date })}</Typography>
+                      <Typography variant="caption">
+                        {t("todos.dueDate", { date: formatDate(todo.due_date) })}
+                      </Typography>
                     )}
                   </Box>
                 }

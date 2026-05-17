@@ -44,6 +44,8 @@ async def list_all_todos(
     status: str | None = Query(None),
     assigned_to: str | None = Query(None),
     mine: bool = Query(True),
+    assigned_only: bool = Query(False),
+    created_only: bool = Query(False),
 ):
     q = select(Todo).order_by(Todo.created_at.desc())
     if status:
@@ -55,8 +57,16 @@ async def list_all_todos(
             if not await PermissionService.has_app_permission(db, user, "admin.todos"):
                 raise HTTPException(403, "Cannot view other users' todos")
         q = q.where(Todo.assigned_to == target_id)
+    elif assigned_only:
+        # Strict scope: only todos assigned to the caller (used by the
+        # workspace counter and the dashboard's My Open Todos preview).
+        q = q.where(Todo.assigned_to == user.id)
+    elif created_only:
+        # Strict scope: only todos the caller created (used by the
+        # "Created by me" tab on /todos).
+        q = q.where(Todo.created_by == user.id)
     elif mine:
-        # Default: only show todos assigned to or created by the current user
+        # Default: todos assigned to OR created by the caller.
         q = q.where((Todo.assigned_to == user.id) | (Todo.created_by == user.id))
 
     q = q.options(selectinload(Todo.card), selectinload(Todo.assignee))

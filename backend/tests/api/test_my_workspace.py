@@ -448,6 +448,64 @@ class TestMyWorkspaceReport:
         assert body["attention_count"] == 2
         assert body["created_count"] == 2
 
+    async def test_open_todo_count_assigned_only(self, client, db):
+        """``open_todo_count`` is scoped to todos *assigned* to the user.
+        Todos the user merely created (but assigned to someone else) live
+        in the "Created by me" tab on ``/todos`` and must not inflate the
+        workspace counter.
+        """
+        await create_role(db, key="member", permissions=MEMBER_PERMISSIONS)
+        alice = await create_user(db, email="alice@test.com", role="member")
+        bob = await create_user(db, email="bob@test.com", role="member")
+
+        # Open, assigned to alice — counts.
+        db.add(Todo(description="assigned-open", status="open", assigned_to=alice.id))
+        # Open, created by alice but assigned to bob — does NOT count.
+        db.add(
+            Todo(
+                description="created-for-bob",
+                status="open",
+                assigned_to=bob.id,
+                created_by=alice.id,
+            )
+        )
+        # Done, assigned to alice — does NOT count (wrong status).
+        db.add(Todo(description="done", status="done", assigned_to=alice.id))
+        await db.flush()
+
+        resp = await client.get("/api/v1/reports/my-workspace", headers=auth_headers(alice))
+        assert resp.status_code == 200
+        assert resp.json()["open_todo_count"] == 1
+
+    async def test_broken_card_count_stakeholder_scope(self, client, db):
+        """Only cards the user holds a stakeholder role on count toward
+        ``broken_card_count`` — same notion of ownership the todos counter
+        uses (assigned to me). Cards merely created by the user, with no
+        stakeholder role, are deliberately excluded.
+        """
+        await create_role(db, key="admin", permissions={"*": True})
+        await create_role(db, key="member", permissions=MEMBER_PERMISSIONS)
+        await create_card_type(db, key="Application", label="Application")
+        admin = await create_user(db, email="admin@test.com", role="admin")
+        alice = await create_user(db, email="alice@test.com", role="member")
+
+        # Broken card alice created but isn't a stakeholder on → does NOT count.
+        await create_card(db, name="MineNoRole", user_id=alice.id, approval_status="BROKEN")
+        # Broken card alice is a stakeholder on (admin created) → counts.
+        broken_stake = await create_card(
+            db, name="StakeholderBroken", user_id=admin.id, approval_status="BROKEN"
+        )
+        db.add(Stakeholder(card_id=broken_stake.id, user_id=alice.id, role="responsible"))
+        # Two stakeholder roles on the same broken card → still 1 distinct card.
+        db.add(Stakeholder(card_id=broken_stake.id, user_id=alice.id, role="observer"))
+        # Broken card alice has nothing to do with → does NOT count.
+        await create_card(db, name="NotMine", user_id=admin.id, approval_status="BROKEN")
+        await db.flush()
+
+        resp = await client.get("/api/v1/reports/my-workspace", headers=auth_headers(alice))
+        assert resp.status_code == 200
+        assert resp.json()["broken_card_count"] == 1
+
     async def test_requires_auth(self, client, db):
         resp = await client.get("/api/v1/reports/my-workspace")
         assert resp.status_code == 401

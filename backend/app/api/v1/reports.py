@@ -211,7 +211,9 @@ async def my_workspace_summary(
         )
     ).scalar() or 0
 
-    # Open todos assigned to the user.
+    # Open todos assigned to the user. The "Created by me" view lives in
+    # its own tab on /todos — surface only assigned items here so the
+    # counter matches the My Open Todos preview rendered just below it.
     open_todo_count = (
         await db.execute(
             select(func.count(Todo.id)).where(
@@ -245,6 +247,11 @@ async def my_workspace_summary(
         )
     ).scalar() or 0
 
+    # "Cards I'm responsible for" means cards I hold a stakeholder role
+    # on — same notion of ownership the todos counter uses (assigned to
+    # me). Cards I only created but have no role on are intentionally
+    # excluded; assign yourself as a stakeholder if you want them to
+    # appear here.
     broken_card_count = (
         await db.execute(
             select(func.count(func.distinct(Card.id)))
