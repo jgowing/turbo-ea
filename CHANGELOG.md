@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.24.1] - 2026-05-21
+
+### Fixed
+- **BPMN templates restored in Docker builds.** Selecting a non-blank starter template (Simple Approval, Order to Cash, Procure to Pay, Hire to Retire, Incident Management) from a Business Process card's **Process Flow → New draft from template** flow now creates the full template content. The `bpmn_templates/` directory was missing from the runtime image, so the backend silently fell back to a blank stub containing only a Start event (#581).
+
 ## [1.24.0] - 2026-05-19
 
 New **Platform Migration (LeanIX)** importer turns a complete LeanIX workspace into Turbo EA cards, relations, tags, stakeholders, documents, comments, and a full custom metamodel in one staged, reviewable operation. Accepts the LeanIX **Full Snapshot** xlsx workbook (Administration → Export → Full Snapshot in LeanIX) and lands every tenant customisation (custom card types, fields with full enum lists, relation types, hierarchy, lineage) end-to-end without a manual remap step.

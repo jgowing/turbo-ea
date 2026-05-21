@@ -32,6 +32,7 @@ COPY --from=backend-build /app/VERSION ./VERSION
 COPY --from=backend-build /app/app ./app
 COPY --from=backend-build /app/alembic ./alembic
 COPY --from=backend-build /app/alembic.ini ./alembic.ini
+COPY --from=backend-build /app/bpmn_templates ./bpmn_templates
 
 # Upgrade the bundled pip past CVE-2025-8869 / CVE-2026-1703 / CVE-2026-6357.
 # pip is never executed at runtime — this only silences Trivy noise on the image.

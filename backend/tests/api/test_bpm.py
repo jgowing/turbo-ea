@@ -78,6 +78,22 @@ class TestBpmTemplates:
         resp = await client.get("/api/v1/bpm/templates")
         assert resp.status_code == 401
 
+    async def test_get_template_returns_full_bpmn_xml(self, client, db, bpm_env):
+        # Regression for #581: non-blank templates must ship the full BPMN
+        # XML (tasks + gateways), not silently fall back to the blank stub
+        # when the bpmn_templates/ directory is missing from the image.
+        admin = bpm_env["admin"]
+        resp = await client.get(
+            "/api/v1/bpm/templates/simple-approval",
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["key"] == "simple-approval"
+        xml = body["bpmn_xml"]
+        assert "<bpmn:userTask" in xml or "<bpmn:task" in xml
+        assert "<bpmn:exclusiveGateway" in xml or "<bpmn:parallelGateway" in xml
+
 
 class TestProcessAssessments:
     async def test_create_assessment(self, client, db, bpm_env):
