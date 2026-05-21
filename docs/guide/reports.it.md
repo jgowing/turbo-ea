@@ -31,6 +31,18 @@ Lo screenshot mostra un caso d'uso tipico: scegli **Oggetto dati** come tipo di 
 
 Cambiare il tipo di scheda azzera le selezioni di raggruppamento, colore e filtri (referenziano chiavi di campo che non esistono nel nuovo tipo) e il report viene ricaricato con i campi, le relazioni e i tag applicabili al tipo scelto. Il report condivide lo stesso permesso del Portfolio applicazioni (`reports.portfolio`) e viene salvato in modo indipendente.
 
+### Raggruppare per ruolo dello stakeholder
+
+Quando il tipo di scheda selezionato definisce ruoli per gli stakeholder e almeno una scheda ha assegnazioni, il menu **Raggruppa per** propone l'opzione **Ruolo dello stakeholder**. Ogni tessera diventa un ruolo (ad esempio *Application Owner*, *Business Owner*), e le schede al suo interno mostrano il nome della persona che ricopre quel ruolo. Una scheda con due ruoli distinti compare in entrambe le tessere.
+
+Nella barra degli strumenti compare una sezione di filtri **Stakeholder** dedicata, con tre controlli:
+
+- **Stakeholder** — limita la vista alle schede in cui una delle persone selezionate ricopre *un qualunque* ruolo. Risponde a «che cosa possiede Alice?».
+- **Ruolo** — limita la vista a tipi di ruolo specifici. Risponde a «quali Applicazioni non hanno un Business Owner?».
+- **Includi non assegnati** — quando si raggruppa per ruolo dello stakeholder, attivare per aggiungere una tessera *Non assegnati* con le schede prive di stakeholder. Disattivato per impostazione predefinita, poiché la maggior parte dei tipi di scheda ha molti elementi non assegnati.
+
+Questi tre filtri funzionano anche al di fuori del raggruppamento per ruolo — ad esempio, raggruppare per ciclo di vita e filtrare su una persona per vedere le sue schede per fase del ciclo di vita.
+
 ## Mappa delle Capability
 
 ![Mappa delle Business Capability](../assets/img/it/11_mappa_capacita.png)

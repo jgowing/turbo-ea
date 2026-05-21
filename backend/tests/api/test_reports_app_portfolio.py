@@ -18,6 +18,7 @@ from tests.conftest import (
     create_relation,
     create_relation_type,
     create_role,
+    create_stakeholder_role_def,
     create_user,
 )
 
@@ -374,3 +375,71 @@ class TestAppPortfolioTypeParam:
         data = resp.json()
         other_types = {rt["other_type_key"] for rt in data["relation_types"]}
         assert "Application" in other_types
+
+
+class TestAppPortfolioStakeholders:
+    """Stakeholder payload powers the Flexible Portfolio's "group by stakeholder
+    role" view and its stakeholder/role filters."""
+
+    async def test_stakeholder_data_in_response(self, client, db, portfolio_env):
+        from app.models.stakeholder import Stakeholder
+
+        admin = portfolio_env["admin"]
+        alice = await create_user(db, email="alice@test.com", display_name="Alice")
+        bob = await create_user(db, email="bob@test.com", display_name="Bob")
+        await create_stakeholder_role_def(
+            db, card_type_key="Application", key="responsible", label="Responsible"
+        )
+        await create_stakeholder_role_def(
+            db, card_type_key="Application", key="observer", label="Observer"
+        )
+
+        app_a = await create_card(db, card_type="Application", name="CRM", user_id=admin.id)
+        app_b = await create_card(db, card_type="Application", name="ERP", user_id=admin.id)
+        # Alice owns both apps, Bob observes ERP.
+        db.add_all(
+            [
+                Stakeholder(card_id=app_a.id, user_id=alice.id, role="responsible"),
+                Stakeholder(card_id=app_b.id, user_id=alice.id, role="responsible"),
+                Stakeholder(card_id=app_b.id, user_id=bob.id, role="observer"),
+            ]
+        )
+        await db.flush()
+
+        resp = await client.get(
+            "/api/v1/reports/app-portfolio",
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        items_by_name = {i["name"]: i for i in data["items"]}
+        crm_roles = {s["role"] for s in items_by_name["CRM"]["stakeholders"]}
+        erp_roles = {s["role"] for s in items_by_name["ERP"]["stakeholders"]}
+        assert crm_roles == {"responsible"}
+        assert erp_roles == {"responsible", "observer"}
+
+        role_keys = {r["key"] for r in data["stakeholder_roles"]}
+        assert {"responsible", "observer"}.issubset(role_keys)
+
+        user_emails = {u["email"] for u in data["stakeholder_users"]}
+        assert user_emails == {"alice@test.com", "bob@test.com"}
+
+    async def test_stakeholder_data_empty_when_no_assignments(self, client, db, portfolio_env):
+        """Cards without stakeholders still get stakeholders=[], the user list
+        is empty, and the role catalogue is still exposed so the UI can show
+        the role filter pre-emptively."""
+        admin = portfolio_env["admin"]
+        await create_stakeholder_role_def(
+            db, card_type_key="Application", key="responsible", label="Responsible"
+        )
+        await create_card(db, card_type="Application", name="CRM", user_id=admin.id)
+
+        resp = await client.get(
+            "/api/v1/reports/app-portfolio",
+            headers=auth_headers(admin),
+        )
+        data = resp.json()
+        assert data["items"][0]["stakeholders"] == []
+        assert data["stakeholder_users"] == []
+        assert {r["key"] for r in data["stakeholder_roles"]} == {"responsible"}

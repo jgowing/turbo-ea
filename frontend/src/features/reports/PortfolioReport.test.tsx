@@ -268,4 +268,79 @@ describe("PortfolioReport", () => {
       expect(screen.getByText("Application Filters")).toBeInTheDocument();
     });
   });
+
+  describe("stakeholder grouping", () => {
+    const MOCK_RESPONSE_WITH_STAKEHOLDERS = {
+      ...MOCK_API_RESPONSE,
+      items: [
+        {
+          ...MOCK_API_RESPONSE.items[0],
+          stakeholders: [
+            { user_id: "u-1", user_display_name: "Alice Owner", role: "responsible" },
+          ],
+        },
+        {
+          ...MOCK_API_RESPONSE.items[1],
+          stakeholders: [
+            { user_id: "u-2", user_display_name: "Bob Watcher", role: "observer" },
+          ],
+        },
+      ],
+      stakeholder_roles: [
+        { key: "responsible", label: "Responsible", color: "#1976d2" },
+        { key: "observer", label: "Observer", color: "#9e9e9e" },
+      ],
+      stakeholder_users: [
+        { id: "u-1", display_name: "Alice Owner", email: "alice@example.com" },
+        { id: "u-2", display_name: "Bob Watcher", email: "bob@example.com" },
+      ],
+    };
+
+    it("exposes Stakeholders filter section when roles/users are present", async () => {
+      vi.mocked(api.get).mockResolvedValue(MOCK_RESPONSE_WITH_STAKEHOLDERS);
+      renderPortfolio();
+
+      await waitFor(() => {
+        expect(screen.getByText("Stakeholders")).toBeInTheDocument();
+      });
+    });
+
+    it("offers 'Stakeholder role' as a group-by option", async () => {
+      vi.mocked(api.get).mockResolvedValue(MOCK_RESPONSE_WITH_STAKEHOLDERS);
+      renderPortfolio();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Group by")).toBeInTheDocument();
+      });
+
+      const groupBy = screen.getByLabelText("Group by");
+      await userEvent.click(groupBy);
+      await waitFor(() => {
+        expect(screen.getByText("Stakeholder role")).toBeInTheDocument();
+      });
+    });
+
+    it("hides the group-by option when no card has stakeholders", async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        ...MOCK_RESPONSE_WITH_STAKEHOLDERS,
+        items: MOCK_RESPONSE_WITH_STAKEHOLDERS.items.map((i) => ({
+          ...i,
+          stakeholders: [],
+        })),
+      });
+      renderPortfolio();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText("Group by")).toBeInTheDocument();
+      });
+
+      const groupBy = screen.getByLabelText("Group by");
+      await userEvent.click(groupBy);
+      await waitFor(() => {
+        // Some other option must be open (so the menu is rendered) but the
+        // stakeholder role option must not appear.
+        expect(screen.queryByText("Stakeholder role")).not.toBeInTheDocument();
+      });
+    });
+  });
 });

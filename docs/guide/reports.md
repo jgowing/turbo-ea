@@ -31,6 +31,18 @@ The screenshot above shows a typical use case: pick **Data Object** as the card 
 
 Switching the card type clears the group-by, colour-by, and filter selections (they reference field keys that don't exist on the new type) and the report re-loads with the fields, relations, and tags applicable to the chosen type. The report shares the same permission as the Application Portfolio (`reports.portfolio`) and saves independently of it.
 
+### Group by stakeholder role
+
+When the selected card type defines stakeholder roles and at least one card has assignments, the **Group by** dropdown exposes a **Stakeholder role** option. Each tile becomes one role (e.g. *Application Owner*, *Business Owner*), with cards inside the tile annotated by the person who holds that role. A card with two distinct roles shows up in both tiles.
+
+A dedicated **Stakeholders** filter section appears in the toolbar, with three controls:
+
+- **Stakeholder** — narrow the view to cards where one of the selected users holds *any* role. Use this to answer "what does Alice own?".
+- **Role** — narrow the view to specific role types. Use this to answer "which Applications have no Business Owner?".
+- **Include unassigned** — when grouped by stakeholder role, toggle on to add a separate *Unassigned* tile that surfaces cards with no stakeholders. Off by default, since most card types have many unassigned items.
+
+These three filters also work outside the stakeholder-role grouping — e.g. group by Lifecycle and filter to one user to see her cards by lifecycle phase.
+
 ## Capability Map
 
 ![Business Capability Map](../assets/img/en/11_capability_map.png)

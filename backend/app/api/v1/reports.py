@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
+from app.api.v1.stakeholders import _roles_for_type
 from app.database import get_db
 from app.models.card import Card
 from app.models.card_type import CardType
@@ -925,6 +926,36 @@ async def app_portfolio(
             }
         )
 
+    # 7b. Stakeholders for the returned cards
+    app_stakeholders: dict[str, list[dict]] = {}
+    stakeholder_users_by_id: dict[str, dict] = {}
+    if app_ids:
+        sh_rows = await db.execute(
+            select(Stakeholder, User)
+            .join(User, User.id == Stakeholder.user_id)
+            .where(Stakeholder.card_id.in_(app_ids))
+        )
+        for sh, sh_user in sh_rows.all():
+            cid = str(sh.card_id)
+            uid = str(sh_user.id)
+            app_stakeholders.setdefault(cid, []).append(
+                {
+                    "user_id": uid,
+                    "user_display_name": sh_user.display_name or sh_user.email,
+                    "role": sh.role,
+                }
+            )
+            if uid not in stakeholder_users_by_id:
+                stakeholder_users_by_id[uid] = {
+                    "id": uid,
+                    "display_name": sh_user.display_name or sh_user.email,
+                    "email": sh_user.email,
+                }
+    stakeholder_users = sorted(
+        stakeholder_users_by_id.values(), key=lambda u: u["display_name"].lower()
+    )
+    stakeholder_roles = await _roles_for_type(db, type)
+
     # 8. Build response items
     items = []
     for a in apps:
@@ -939,6 +970,7 @@ async def app_portfolio(
                 "relations": app_relations.get(aid, []),
                 "org_ids": sorted(app_orgs.get(aid, set())),
                 "tag_ids": app_tag_ids.get(aid, []),
+                "stakeholders": app_stakeholders.get(aid, []),
             }
         )
 
@@ -964,6 +996,8 @@ async def app_portfolio(
         "groupable_types": groupable_types,
         "organizations": organizations,
         "tag_groups": tag_groups_payload,
+        "stakeholder_roles": stakeholder_roles,
+        "stakeholder_users": stakeholder_users,
     }
 
 

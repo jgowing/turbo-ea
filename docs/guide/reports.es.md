@@ -31,6 +31,18 @@ La captura muestra un caso de uso típico: elija **Objeto de Datos** como tipo d
 
 Cambiar el tipo de tarjeta restablece las selecciones de agrupación, color y filtros (hacen referencia a claves de campo que no existen en el nuevo tipo) y el informe se recarga con los campos, relaciones y etiquetas aplicables al tipo elegido. El informe comparte el mismo permiso que el Portafolio de aplicaciones (`reports.portfolio`) y se guarda de forma independiente.
 
+### Agrupar por rol de parte interesada
+
+Cuando el tipo de tarjeta seleccionado define roles de partes interesadas y al menos una tarjeta tiene asignaciones, el menú **Agrupar por** muestra la opción **Rol de parte interesada**. Cada mosaico pasa a ser un rol (por ejemplo *Application Owner*, *Business Owner*), y las tarjetas dentro del mosaico se muestran con el nombre de la persona que ejerce ese rol. Una tarjeta con dos roles distintos aparece en ambos mosaicos.
+
+En la barra de herramientas aparece una sección de filtros **Partes interesadas** con tres controles:
+
+- **Parte interesada** — limita la vista a las tarjetas en las que una de las personas seleccionadas ejerce *algún* rol. Responde a «¿qué posee Alice?».
+- **Rol** — limita la vista a tipos de rol concretos. Responde a «¿qué aplicaciones no tienen un Business Owner?».
+- **Incluir no asignados** — al agrupar por rol de parte interesada, actívelo para añadir un mosaico *No asignados* con las tarjetas sin partes interesadas. Desactivado por defecto, ya que la mayoría de los tipos de tarjeta tienen muchos elementos sin asignar.
+
+Estos tres filtros también funcionan fuera de la agrupación por rol — por ejemplo, agrupar por ciclo de vida y filtrar por una persona para ver sus tarjetas por fase del ciclo de vida.
+
 ## Mapa de Capacidades
 
 ![Mapa de Capacidades de Negocio](../assets/img/es/11_mapa_capacidades.png)

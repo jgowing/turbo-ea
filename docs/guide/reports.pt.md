@@ -31,6 +31,18 @@ A captura mostra um caso de uso típico: escolha **Objeto de Dados** como tipo d
 
 Alterar o tipo de cartão reinicia as seleções de agrupamento, cor e filtros (referenciam chaves de campo que não existem no novo tipo) e o relatório é recarregado com os campos, relações e etiquetas aplicáveis ao tipo escolhido. O relatório compartilha a mesma permissão do Portfólio de Aplicações (`reports.portfolio`) e é salvo de forma independente.
 
+### Agrupar por função de parte interessada
+
+Quando o tipo de cartão selecionado define funções de parte interessada e ao menos um cartão tem atribuições, o menu **Agrupar por** mostra a opção **Função de parte interessada**. Cada bloco passa a ser uma função (por exemplo, *Application Owner*, *Business Owner*), e os cartões dentro do bloco aparecem anotados com o nome da pessoa que exerce essa função. Um cartão com duas funções distintas surge em ambos os blocos.
+
+Na barra de ferramentas aparece uma seção de filtros **Partes interessadas**, com três controles:
+
+- **Parte interessada** — restringe a visão aos cartões em que uma das pessoas selecionadas exerce *alguma* função. Responde «o que pertence à Alice?».
+- **Função** — restringe a visão a tipos de função específicos. Responde «quais Aplicações não têm um Business Owner?».
+- **Incluir não atribuídos** — ao agrupar por função de parte interessada, ative para mostrar um bloco *Não atribuídos* com os cartões sem partes interessadas. Desativado por padrão, já que a maioria dos tipos de cartão tem muitos itens não atribuídos.
+
+Esses três filtros também funcionam fora do agrupamento por função — por exemplo, agrupe por ciclo de vida e filtre por uma pessoa para ver os cartões dela por fase do ciclo de vida.
+
 ## Mapa de Capacidades
 
 ![Mapa de Capacidades de Negócio](../assets/img/pt/11_mapa_capacidades.png)

@@ -31,6 +31,18 @@ Der Screenshot oben zeigt einen typischen Anwendungsfall: Wählen Sie **Datenobj
 
 Beim Wechsel des Kartentyps werden die Auswahl für Gruppierung, Färbung und Filter zurückgesetzt (sie verweisen auf Feldschlüssel, die im neuen Typ nicht existieren), und der Bericht wird mit den Feldern, Beziehungen und Tags des gewählten Typs neu geladen. Der Bericht nutzt dieselbe Berechtigung wie das Anwendungsportfolio (`reports.portfolio`) und wird unabhängig davon gespeichert.
 
+### Nach Stakeholder-Rolle gruppieren
+
+Wenn der gewählte Kartentyp Stakeholder-Rollen definiert und mindestens eine Karte Zuweisungen hat, erscheint im Dropdown **Gruppieren nach** die Option **Stakeholder-Rolle**. Jede Kachel wird zu einer Rolle (z. B. *Application Owner*, *Business Owner*), und die Karten in der Kachel werden mit dem Namen der Person versehen, die diese Rolle innehat. Eine Karte mit zwei unterschiedlichen Rollen taucht in beiden Kacheln auf.
+
+In der Symbolleiste erscheint ein eigener Filterbereich **Stakeholder** mit drei Steuerungen:
+
+- **Stakeholder** — beschränkt die Ansicht auf Karten, bei denen eine ausgewählte Person *irgendeine* Rolle innehat. Beantwortet «Welche Karten besitzt Alice?».
+- **Rolle** — beschränkt die Ansicht auf bestimmte Rollentypen. Beantwortet «Welche Anwendungen haben keinen Business Owner?».
+- **Nicht zugewiesene einschließen** — beim Gruppieren nach Stakeholder-Rolle einschalten, um eine separate Kachel *Nicht zugewiesen* mit Karten ohne Stakeholder hinzuzufügen. Standardmäßig aus, da die meisten Kartentypen viele nicht zugewiesene Einträge haben.
+
+Diese drei Filter funktionieren auch außerhalb der Stakeholder-Rollen-Gruppierung — z. B. nach Lebenszyklus gruppieren und auf eine Person filtern, um deren Karten je Lebenszyklusphase zu sehen.
+
 ## Fähigkeitskarte
 
 ![Geschäftsfähigkeitskarte](../assets/img/de/11_faehigkeiten_karte.png)

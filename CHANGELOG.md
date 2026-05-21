@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.25.0] - 2026-05-21
+
+### Added
+- **Flexible Portfolio report: group by stakeholder role.** The Flexible Portfolio (and the legacy Application Portfolio) now exposes a new "Stakeholder role" group-by mode — one tile per role defined on the selected card type (e.g. *Application Owner*, *Business Owner*), with each card chip showing the user(s) holding that role. New filter section in the toolbar to narrow by stakeholder name and/or role type, plus an *Include unassigned* toggle to surface cards with no stakeholders. Answers "who owns what" without leaving the report. Available wherever stakeholder role definitions exist for the chosen card type.
+
 ## [1.24.1] - 2026-05-21
 
 ### Fixed

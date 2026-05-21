@@ -31,6 +31,18 @@ La capture ci-dessus illustre un cas d'usage typique : choisissez **Objet de don
 
 Changer de type de carte réinitialise les sélections de regroupement, de coloration et de filtres (elles référencent des clés de champs qui n'existent pas sur le nouveau type) et le rapport est rechargé avec les champs, relations et tags applicables au type choisi. Le rapport partage la même permission que le Portefeuille applicatif (`reports.portfolio`) et est enregistré indépendamment.
 
+### Regrouper par rôle de partie prenante
+
+Lorsque le type de carte sélectionné définit des rôles de partie prenante et qu'au moins une carte a des affectations, le menu **Regrouper par** propose l'option **Rôle de partie prenante**. Chaque tuile devient un rôle (par exemple *Application Owner*, *Business Owner*) ; les cartes à l'intérieur affichent le nom de la personne qui tient ce rôle. Une carte portant deux rôles distincts apparaît dans les deux tuiles.
+
+Une section de filtres **Parties prenantes** dédiée apparaît dans la barre d'outils, avec trois commandes :
+
+- **Partie prenante** — restreint la vue aux cartes où l'une des personnes sélectionnées tient *un* rôle. Permet de répondre à «que possède Alice ?».
+- **Rôle** — restreint la vue à certains types de rôles. Permet de répondre à «quelles applications n'ont pas de Business Owner ?».
+- **Inclure les non assignés** — lors d'un regroupement par rôle de partie prenante, activer pour faire apparaître une tuile *Non assignés* avec les cartes sans partie prenante. Désactivé par défaut, car la plupart des types de cartes comportent beaucoup d'éléments non assignés.
+
+Ces trois filtres fonctionnent aussi hors du regroupement par rôle — par exemple, regrouper par cycle de vie et filtrer sur une personne pour voir ses cartes par phase de cycle de vie.
+
 ## Carte de capacités
 
 ![Carte de capacités métier](../assets/img/fr/11_carte_capacites.png)

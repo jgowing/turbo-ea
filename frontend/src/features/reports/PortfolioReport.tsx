@@ -24,6 +24,8 @@ import Button from "@mui/material/Button";
 import Alert from "@mui/material/Alert";
 import Collapse from "@mui/material/Collapse";
 import LinearProgress from "@mui/material/LinearProgress";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import ReportShell from "./ReportShell";
 import SaveReportDialog from "./SaveReportDialog";
 import TimelineSlider from "@/components/TimelineSlider";
@@ -52,6 +54,12 @@ interface AppRelation {
   related_type: string;
 }
 
+interface AppStakeholder {
+  user_id: string;
+  user_display_name: string;
+  role: string;
+}
+
 interface AppData {
   id: string;
   name: string;
@@ -61,6 +69,20 @@ interface AppData {
   relations: AppRelation[];
   org_ids: string[];
   tag_ids?: string[];
+  stakeholders?: AppStakeholder[];
+}
+
+interface StakeholderRoleDef {
+  key: string;
+  label: string;
+  color?: string;
+  translations?: Record<string, string>;
+}
+
+interface StakeholderUserRef {
+  id: string;
+  display_name: string;
+  email?: string;
 }
 
 interface TagGroupDef {
@@ -111,12 +133,19 @@ interface ApiResponse {
   groupable_types: Record<string, { id: string; name: string; type: string }[]>;
   organizations: OrgRef[];
   tag_groups?: TagGroupDef[];
+  stakeholder_roles?: StakeholderRoleDef[];
+  stakeholder_users?: StakeholderUserRef[];
 }
 
 interface GroupData {
   key: string;
   label: string;
   apps: AppData[];
+  /** Optional accent color (used for stakeholder role headers). */
+  color?: string;
+  /** For stakeholder-role groups, maps card.id -> stakeholder display names
+   * holding *this* role on that card. Drives the chip sub-label. */
+  appUserNames?: Record<string, string[]>;
 }
 
 interface DrawerData {
@@ -211,6 +240,10 @@ interface FilterState {
   tagGroups: TagGroupDef[];
   timelineDate: number;
   search: string;
+  /** Restrict to cards where at least one stakeholder is one of these users. */
+  stakeholderUserIds: string[];
+  /** Restrict to cards where at least one stakeholder holds one of these roles. */
+  stakeholderRoleKeys: string[];
 }
 
 function matchesFilters(
@@ -258,6 +291,15 @@ function matchesFilters(
     !app.name.toLowerCase().includes(filters.search.toLowerCase())
   )
     return false;
+  // Stakeholder filters
+  if (filters.stakeholderUserIds.length > 0) {
+    const ids = new Set(filters.stakeholderUserIds);
+    if (!(app.stakeholders || []).some((s) => ids.has(s.user_id))) return false;
+  }
+  if (filters.stakeholderRoleKeys.length > 0) {
+    const keys = new Set(filters.stakeholderRoleKeys);
+    if (!(app.stakeholders || []).some((s) => keys.has(s.role))) return false;
+  }
   return true;
 }
 
@@ -265,13 +307,17 @@ function matchesFilters(
 /*  Grouping logic                                                     */
 /* ------------------------------------------------------------------ */
 
-type GroupByMode = { kind: "attribute"; fieldKey: string } | { kind: "relation"; typeKey: string };
+type GroupByMode =
+  | { kind: "attribute"; fieldKey: string }
+  | { kind: "relation"; typeKey: string }
+  | { kind: "stakeholder_role" };
 
 function groupApps(
   apps: AppData[],
   mode: GroupByMode,
   selectFields: FieldDef[],
   groupableTypes: Record<string, { id: string; name: string; type: string }[]>,
+  stakeholderRoles: StakeholderRoleDef[] = [],
 ): { groups: GroupData[]; ungrouped: AppData[] } {
   if (mode.kind === "attribute") {
     const field = selectFields.find((f) => f.key === mode.fieldKey);
@@ -294,6 +340,50 @@ function groupApps(
       const items = buckets.get(opt.key) || [];
       groups.push({ key: opt.key, label: opt.label, apps: items });
     }
+    return { groups, ungrouped };
+  }
+
+  if (mode.kind === "stakeholder_role") {
+    // One bucket per active role definition. A card appears in every role
+    // bucket it has stakeholders for — same multi-bucket behaviour as
+    // relation grouping. Cards with no stakeholders go to `ungrouped`
+    // (the caller decides whether to render them as an "Unassigned" tile).
+    const buckets = new Map<string, { apps: AppData[]; names: Record<string, string[]> }>();
+    const grouped = new Set<string>();
+
+    for (const r of stakeholderRoles) buckets.set(r.key, { apps: [], names: {} });
+    for (const app of apps) {
+      const seenRoles = new Set<string>();
+      for (const sh of app.stakeholders || []) {
+        const bucket = buckets.get(sh.role);
+        if (!bucket) continue;
+        if (!seenRoles.has(sh.role)) {
+          bucket.apps.push(app);
+          seenRoles.add(sh.role);
+        }
+        bucket.names[app.id] = bucket.names[app.id] || [];
+        if (!bucket.names[app.id].includes(sh.user_display_name)) {
+          bucket.names[app.id].push(sh.user_display_name);
+        }
+        grouped.add(app.id);
+      }
+    }
+
+    const groups: GroupData[] = [];
+    for (const r of stakeholderRoles) {
+      const b = buckets.get(r.key);
+      if (!b || b.apps.length === 0) continue;
+      groups.push({
+        key: r.key,
+        label: r.label,
+        apps: b.apps,
+        color: r.color,
+        appUserNames: b.names,
+      });
+    }
+    groups.sort((a, b) => b.apps.length - a.apps.length);
+
+    const ungrouped = apps.filter((a) => !grouped.has(a.id));
     return { groups, ungrouped };
   }
 
@@ -334,22 +424,52 @@ function AppChip({
   colorBy,
   selectFields,
   onClick,
+  stakeholderNames,
 }: {
   app: AppData;
   colorBy: string;
   selectFields: FieldDef[];
   onClick: () => void;
+  /** Optional list of stakeholder display names to attach as a secondary
+   * caption on the chip \u2014 used in stakeholder-role grouping so each chip
+   * reads "Card name (Alice, Bob)". */
+  stakeholderNames?: string[];
 }) {
   const color = getAppColor(app, colorBy, selectFields);
   const colorLabel = getAppColorLabel(app, colorBy, selectFields);
   const light = isLightColor(color);
-  const tip = colorLabel ? `${app.name} \u2014 ${colorLabel}` : app.name;
+  const userSuffix =
+    stakeholderNames && stakeholderNames.length > 0
+      ? stakeholderNames.join(", ")
+      : null;
+  const tipParts = [app.name];
+  if (userSuffix) tipParts.push(userSuffix);
+  if (colorLabel) tipParts.push(colorLabel);
+  const tip = tipParts.join(" \u2014 ");
 
   return (
     <Tooltip title={tip}>
       <Chip
         size="small"
-        label={app.name}
+        label={
+          userSuffix ? (
+            <Box component="span" sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+              <Box component="span">{app.name}</Box>
+              <Box
+                component="span"
+                sx={{
+                  fontSize: "0.65rem",
+                  fontWeight: 400,
+                  opacity: 0.85,
+                }}
+              >
+                \u00b7 {userSuffix}
+              </Box>
+            </Box>
+          ) : (
+            app.name
+          )
+        }
         onClick={(e) => {
           e.stopPropagation();
           onClick();
@@ -359,7 +479,7 @@ function AppChip({
           color: light ? "#333" : "#fff",
           fontWeight: 500,
           fontSize: "0.72rem",
-          maxWidth: 180,
+          maxWidth: 280,
           cursor: "pointer",
           "&:hover": { opacity: 0.85 },
         }}
@@ -492,6 +612,7 @@ function GroupCard({
                 colorBy={colorBy}
                 selectFields={selectFields}
                 onClick={() => onAppClick(app.id)}
+                stakeholderNames={group.appUserNames?.[app.id]}
               />
             ))}
         </Box>
@@ -561,6 +682,9 @@ export default function PortfolioReport({
   const [attrFilters, setAttrFilters] = useState<Record<string, string[]>>({});
   const [relationFilters, setRelationFilters] = useState<Record<string, string[]>>({});
   const [tagFilterIds, setTagFilterIds] = useState<string[]>([]);
+  const [stakeholderUserIds, setStakeholderUserIds] = useState<string[]>([]);
+  const [stakeholderRoleKeys, setStakeholderRoleKeys] = useState<string[]>([]);
+  const [includeUnassigned, setIncludeUnassigned] = useState(false);
   const [showAllRelFilters, setShowAllRelFilters] = useState(false);
 
   // Timeline
@@ -594,13 +718,31 @@ export default function PortfolioReport({
       }
       // Backwards compat: old saved configs may have filterOrgs
       if (cfg.filterOrgs) setRelationFilters((prev) => ({ ...prev, Organization: cfg.filterOrgs as string[] }));
+      if (cfg.stakeholderUserIds) setStakeholderUserIds(cfg.stakeholderUserIds as string[]);
+      if (cfg.stakeholderRoleKeys) setStakeholderRoleKeys(cfg.stakeholderRoleKeys as string[]);
+      if (cfg.includeUnassigned != null) setIncludeUnassigned(Boolean(cfg.includeUnassigned));
       if (cfg.sortK) setSortK(cfg.sortK as string);
       if (cfg.sortD) setSortD(cfg.sortD as "asc" | "desc");
       setDefaultsApplied(true);
     }
   }, [saved.loadedConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const getConfig = () => ({ cardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, timelineDate: tl.persistValue, sortK, sortD });
+  const getConfig = () => ({
+    cardType,
+    view,
+    groupByRaw,
+    colorBy,
+    search,
+    attrFilters,
+    relationFilters,
+    tagFilterIds,
+    stakeholderUserIds,
+    stakeholderRoleKeys,
+    includeUnassigned,
+    timelineDate: tl.persistValue,
+    sortK,
+    sortD,
+  });
 
   // Auto-persist config to localStorage. Skip the very first run so that on
   // mount we don't overwrite a previously-saved config with the initial
@@ -617,7 +759,7 @@ export default function PortfolioReport({
     }
     if (dataCardType !== cardType) return;
     saved.persistConfig(getConfig());
-  }, [cardType, dataCardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, tl.timelineDate, sortK, sortD]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cardType, dataCardType, view, groupByRaw, colorBy, search, attrFilters, relationFilters, tagFilterIds, stakeholderUserIds, stakeholderRoleKeys, includeUnassigned, tl.timelineDate, sortK, sortD]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset all parameters to defaults
   const handleReset = useCallback(() => {
@@ -630,6 +772,9 @@ export default function PortfolioReport({
     setAttrFilters({});
     setRelationFilters({});
     setTagFilterIds([]);
+    setStakeholderUserIds([]);
+    setStakeholderRoleKeys([]);
+    setIncludeUnassigned(false);
     setShowAllRelFilters(false);
     tl.reset();
     setSortK("name");
@@ -668,6 +813,9 @@ export default function PortfolioReport({
     setAttrFilters({});
     setRelationFilters({});
     setTagFilterIds([]);
+    setStakeholderUserIds([]);
+    setStakeholderRoleKeys([]);
+    setIncludeUnassigned(false);
     setShowAllRelFilters(false);
     setDefaultsApplied(false);
   }, [cardType]);
@@ -707,8 +855,22 @@ export default function PortfolioReport({
       }
     }
 
+    // Stakeholder-role grouping — only when the type defines roles AND at
+    // least one card has stakeholders, otherwise the option just yields an
+    // empty view.
+    const hasStakeholderAssignments = data.items.some(
+      (a) => (a.stakeholders || []).length > 0,
+    );
+    if ((data.stakeholder_roles || []).length > 0 && hasStakeholderAssignments) {
+      opts.push({
+        key: "sh:roles",
+        label: t("portfolio.groupBy.stakeholderRole"),
+        icon: "groups",
+      });
+    }
+
     return opts;
-  }, [data, selectFields, metamodelTypes]);
+  }, [data, selectFields, metamodelTypes, rml, t]);
 
   // Apply defaults once data is available. Skip when `data` is stale (loaded
   // for a previous card type) — otherwise we'd pick options from the old
@@ -734,6 +896,9 @@ export default function PortfolioReport({
   const groupByMode = useMemo<GroupByMode>(() => {
     if (groupByKey.startsWith("attr:")) {
       return { kind: "attribute", fieldKey: groupByKey.slice(5) };
+    }
+    if (groupByKey === "sh:roles") {
+      return { kind: "stakeholder_role" };
     }
     return { kind: "relation", typeKey: groupByKey.slice(4) };
   }, [groupByKey]);
@@ -800,8 +965,10 @@ export default function PortfolioReport({
       tagGroups: data?.tag_groups || [],
       timelineDate: tl.timelineDate,
       search,
+      stakeholderUserIds,
+      stakeholderRoleKeys,
     }),
-    [attrFilters, relationFilters, tagFilterIds, data, tl.timelineDate, search],
+    [attrFilters, relationFilters, tagFilterIds, data, tl.timelineDate, search, stakeholderUserIds, stakeholderRoleKeys],
   );
 
   // Filtered apps
@@ -813,8 +980,21 @@ export default function PortfolioReport({
   // Grouped data
   const { groups, ungrouped } = useMemo(() => {
     if (!data) return { groups: [], ungrouped: [] };
-    return groupApps(filteredApps, groupByMode, selectFields, data.groupable_types);
-  }, [filteredApps, groupByMode, selectFields, data]);
+    // For stakeholder-role grouping, only the roles the user selected (if
+    // any) drive the visible tiles — same intent as a "show only these
+    // roles" toggle. Empty selection means all roles.
+    const stakeholderRoles =
+      groupByMode.kind === "stakeholder_role" && stakeholderRoleKeys.length > 0
+        ? (data.stakeholder_roles || []).filter((r) => stakeholderRoleKeys.includes(r.key))
+        : data.stakeholder_roles || [];
+    return groupApps(
+      filteredApps,
+      groupByMode,
+      selectFields,
+      data.groupable_types,
+      stakeholderRoles,
+    );
+  }, [filteredApps, groupByMode, selectFields, data, stakeholderRoleKeys]);
 
   // Color-by distribution for the ungrouped section
   const ungroupedColorSegments = useMemo(() => {
@@ -860,12 +1040,24 @@ export default function PortfolioReport({
     Object.values(attrFilters).some((v) => v.length > 0) ||
     Object.values(relationFilters).some((v) => v.length > 0) ||
     tagFilterIds.length > 0 ||
+    stakeholderUserIds.length > 0 ||
+    stakeholderRoleKeys.length > 0 ||
     search.length > 0;
+
+  // In stakeholder-role mode, most cards land in `ungrouped` whenever they
+  // have no stakeholders. Showing them by default would drown the view, so
+  // the user opts in via the "Include unassigned" toggle. Every other mode
+  // keeps the legacy "always show" behaviour.
+  const showUngrouped =
+    groupByMode.kind === "stakeholder_role" ? includeUnassigned : true;
+  const visibleUngrouped = showUngrouped ? ungrouped : [];
 
   const clearFilters = useCallback(() => {
     setAttrFilters({});
     setRelationFilters({});
     setTagFilterIds([]);
+    setStakeholderUserIds([]);
+    setStakeholderRoleKeys([]);
     setSearch("");
     tl.reset();
   }, [tl]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -997,7 +1189,12 @@ export default function PortfolioReport({
     groupByOptions.find((o) => o.key === groupByKey)?.label || t("common.group");
 
   const colorByLabel = colorByOptions.find((o) => o.key === colorBy)?.label || "";
-  const activeFilterCount = Object.values(attrFilters).flat().length + Object.values(relationFilters).flat().length + tagFilterIds.length;
+  const activeFilterCount =
+    Object.values(attrFilters).flat().length +
+    Object.values(relationFilters).flat().length +
+    tagFilterIds.length +
+    stakeholderUserIds.length +
+    stakeholderRoleKeys.length;
 
   // Visible card types — populates the optional type selector and resolves
   // the localised label of the currently-selected type for dynamic strings.
@@ -1181,6 +1378,21 @@ export default function PortfolioReport({
                   </Box>
                 </MenuItem>
               ))}
+            {groupByOptions.some((o) => o.key.startsWith("sh:")) && (
+              <MenuItem disabled sx={{ opacity: 0.6, fontSize: "0.75rem", fontWeight: 600 }}>
+                {t("portfolio.stakeholders")}
+              </MenuItem>
+            )}
+            {groupByOptions
+              .filter((o) => o.key.startsWith("sh:"))
+              .map((o) => (
+                <MenuItem key={o.key} value={o.key}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <MaterialSymbol icon={o.icon} size={16} color={theme.palette.text.secondary} />
+                    {o.label}
+                  </Box>
+                </MenuItem>
+              ))}
           </TextField>
 
           <TextField
@@ -1331,6 +1543,70 @@ export default function PortfolioReport({
                         border: 1,
                         borderColor: "divider",
                       }}
+                    />
+                  )}
+                </Box>
+              )}
+
+              {/* Stakeholders section */}
+              {((data?.stakeholder_roles || []).length > 0 ||
+                (data?.stakeholder_users || []).length > 0) && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    flexWrap: "wrap",
+                    bgcolor: "action.hover",
+                    borderRadius: 1.5,
+                    px: 1.5,
+                    py: 0.75,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.7rem", whiteSpace: "nowrap" }}
+                  >
+                    {t("portfolio.stakeholders")}
+                  </Typography>
+                  {(data?.stakeholder_users || []).length > 0 && (
+                    <FilterSelect
+                      label={t("portfolio.filter.stakeholderName")}
+                      options={(data?.stakeholder_users || []).map((u) => ({
+                        key: u.id,
+                        label: u.display_name,
+                      }))}
+                      value={stakeholderUserIds}
+                      onChange={setStakeholderUserIds}
+                    />
+                  )}
+                  {(data?.stakeholder_roles || []).length > 0 && (
+                    <FilterSelect
+                      label={t("portfolio.filter.stakeholderRole")}
+                      options={(data?.stakeholder_roles || []).map((r) => ({
+                        key: r.key,
+                        label: r.label,
+                        color: r.color,
+                      }))}
+                      value={stakeholderRoleKeys}
+                      onChange={setStakeholderRoleKeys}
+                    />
+                  )}
+                  {groupByMode.kind === "stakeholder_role" && (
+                    <FormControlLabel
+                      sx={{ ml: 0.5, mr: 0 }}
+                      control={
+                        <Switch
+                          size="small"
+                          checked={includeUnassigned}
+                          onChange={(e) => setIncludeUnassigned(e.target.checked)}
+                        />
+                      }
+                      label={
+                        <Typography variant="caption" sx={{ fontSize: "0.72rem" }}>
+                          {t("portfolio.filter.includeUnassigned")}
+                        </Typography>
+                      }
                     />
                   )}
                 </Box>
@@ -1593,7 +1869,7 @@ export default function PortfolioReport({
 
       {view === "chart" ? (
         <>
-          {groups.length === 0 && ungrouped.length === 0 ? (
+          {groups.length === 0 && visibleUngrouped.length === 0 ? (
             <Box sx={{ py: 8, textAlign: "center" }}>
               <Typography color="text.secondary">
                 {hasActiveFilters ? noItemsFiltered : noItemsEmpty}
@@ -1630,7 +1906,7 @@ export default function PortfolioReport({
               </Box>
 
               {/* Ungrouped section */}
-              {ungrouped.length > 0 && (
+              {visibleUngrouped.length > 0 && (
                 <Box
                   sx={{
                     border: "1px dashed",
@@ -1771,6 +2047,9 @@ export default function PortfolioReport({
                 {groupByMode.kind === "relation" && (
                   <TableCell>{groupByLabel}</TableCell>
                 )}
+                {groupByMode.kind === "stakeholder_role" && (
+                  <TableCell>{groupByLabel}</TableCell>
+                )}
                 {colorBy && (
                   <TableCell>
                     <TableSortLabel
@@ -1801,12 +2080,27 @@ export default function PortfolioReport({
                           "\u2014"
                         );
                       })()
-                    : app.relations
-                        .filter(
-                          (r) => r.related_type === groupByMode.typeKey,
-                        )
-                        .map((r) => r.related_name)
-                        .join(", ") || "\u2014";
+                    : groupByMode.kind === "stakeholder_role"
+                      ? (() => {
+                          const sh = app.stakeholders || [];
+                          if (sh.length === 0) return "\u2014";
+                          const roleLabels = new Map<string, string>();
+                          for (const r of data?.stakeholder_roles || []) {
+                            roleLabels.set(r.key, r.label);
+                          }
+                          return sh
+                            .map((s) => {
+                              const role = roleLabels.get(s.role) || s.role;
+                              return `${s.user_display_name} (${role})`;
+                            })
+                            .join(", ");
+                        })()
+                      : app.relations
+                          .filter(
+                            (r) => r.related_type === groupByMode.typeKey,
+                          )
+                          .map((r) => r.related_name)
+                          .join(", ") || "\u2014";
                 const colorVal = colorBy
                   ? getAppColorLabel(app, colorBy, selectFields) || "\u2014"
                   : null;
