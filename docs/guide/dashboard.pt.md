@@ -41,3 +41,9 @@ Na seção inferior do Painel, você encontrará:
 - **Status de aprovação**: Indica quantos cards estão aprovados, pendentes, quebrados ou rejeitados
 - **Qualidade dos dados**: Porcentagem geral de completude das informações em todos os cards
 - **Atividade recente**: Um feed das últimas alterações — quem editou o quê e quando
+
+## Aba «Espaço de trabalho»
+
+A aba **Espaço de trabalho** reúne tudo o que está atribuído a você: favoritos, tarefas, pesquisas pendentes, atividade recente em seus cards e a seção **Cards com meu papel**.
+
+Esta última agrupa os cards pelo papel de parte interessada que você desempenha (Application Owner, Business Owner, etc.) e lista os cards sob cada papel. Se seu papel concede a permissão `stakeholders.view` (admin, member e viewer por padrão), um pequeno ícone **person_search** aparece ao lado do título da seção: selecione um usuário na autocompletação e a seção é recarregada com os papéis e cards dele. O título muda para «Funções desempenhadas por {name}». Clique no pequeno ícone de fechar para voltar aos seus próprios papéis. Útil para responder a «o que essa pessoa possui?» com um clique.

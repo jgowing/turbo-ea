@@ -230,6 +230,74 @@ class TestMyStakeholderCards:
         names = {item["name"] for item in resp.json()["items"]}
         assert names == {"Active"}
 
+    async def test_user_id_param_returns_target_user_cards(self, client, db, env):
+        """`?user_id=` lets a permitted caller look up someone else's
+        stakeholder portfolio — the same shape as the no-arg response."""
+        c1 = await create_card(db, card_type="Application", name="A", user_id=env["admin"].id)
+        c2 = await create_card(db, card_type="Application", name="B", user_id=env["admin"].id)
+        db.add(Stakeholder(card_id=c1.id, user_id=env["alice"].id, role="responsible"))
+        db.add(Stakeholder(card_id=c2.id, user_id=env["bob"].id, role="responsible"))
+        await db.flush()
+
+        # Admin caller, scoped to Alice → only Alice's cards.
+        resp = await client.get(
+            f"/api/v1/cards/my-stakeholder?user_id={env['alice'].id}",
+            headers=auth_headers(env["admin"]),
+        )
+        assert resp.status_code == 200
+        names = {item["name"] for item in resp.json()["items"]}
+        assert names == {"A"}
+
+    async def test_user_id_omitted_still_returns_caller_cards(self, client, db, env):
+        """Regression guard: existing consumers that hit `/cards/my-stakeholder`
+        with no params keep getting the caller's own cards."""
+        c1 = await create_card(db, card_type="Application", name="A", user_id=env["admin"].id)
+        c2 = await create_card(db, card_type="Application", name="B", user_id=env["admin"].id)
+        db.add(Stakeholder(card_id=c1.id, user_id=env["alice"].id, role="responsible"))
+        db.add(Stakeholder(card_id=c2.id, user_id=env["bob"].id, role="responsible"))
+        await db.flush()
+
+        resp = await client.get("/api/v1/cards/my-stakeholder", headers=auth_headers(env["alice"]))
+        names = {item["name"] for item in resp.json()["items"]}
+        assert names == {"A"}
+
+    async def test_user_id_param_denied_without_stakeholders_view(self, client, db, env):
+        """A caller whose role lacks `stakeholders.view` cannot look up
+        another user's portfolio. Self-lookup must still work."""
+        # Custom role that has inventory.view but NOT stakeholders.view.
+        await create_role(
+            db,
+            key="no_stakeholder_view",
+            label="No Stakeholder View",
+            permissions={"inventory.view": True, "stakeholders.view": False},
+            is_system=False,
+        )
+        no_perm_user = await create_user(db, email="noperm@test.com", role="no_stakeholder_view")
+
+        # Cross-user lookup → 403.
+        resp = await client.get(
+            f"/api/v1/cards/my-stakeholder?user_id={env['alice'].id}",
+            headers=auth_headers(no_perm_user),
+        )
+        assert resp.status_code == 403
+
+        # Self-lookup with same user_id still works (no permission needed).
+        resp = await client.get(
+            f"/api/v1/cards/my-stakeholder?user_id={no_perm_user.id}",
+            headers=auth_headers(no_perm_user),
+        )
+        assert resp.status_code == 200
+
+    async def test_user_id_unknown_returns_404(self, client, db, env):
+        import uuid
+
+        ghost_id = uuid.uuid4()
+        resp = await client.get(
+            f"/api/v1/cards/my-stakeholder?user_id={ghost_id}",
+            headers=auth_headers(env["admin"]),
+        )
+        assert resp.status_code == 404
+
 
 # ---------------------------------------------------------------------------
 # /cards/my-created

@@ -41,3 +41,9 @@ Nella sezione inferiore della Dashboard troverete:
 - **Stato di approvazione**: Indica quante card sono approvate, in attesa, interrotte o rifiutate
 - **Qualità dei dati**: Percentuale complessiva di completezza delle informazioni su tutte le card
 - **Attività recente**: Un feed delle ultime modifiche — chi ha modificato cosa e quando
+
+## Scheda «Spazio di lavoro»
+
+La scheda **Spazio di lavoro** raccoglie tutto ciò che vi è assegnato: preferiti, attività, sondaggi in attesa, attività recente sulle vostre card e la sezione **Carte con il mio ruolo**.
+
+Quest'ultima raggruppa le card per il ruolo di stakeholder che ricoprite (Application Owner, Business Owner, ecc.) ed elenca le card sotto ciascun ruolo. Se il vostro ruolo concede l'autorizzazione `stakeholders.view` (admin, member e viewer per impostazione predefinita), accanto al titolo della sezione appare una piccola icona **person_search**: selezionate un utente dall'autocompletamento e la sezione si ricarica con i suoi ruoli e le sue card. Il titolo diventa «Ruoli ricoperti da {name}». Fate clic sulla piccola icona di chiusura per tornare ai vostri ruoli. Utile per rispondere a «cosa possiede questa persona?» con un clic.

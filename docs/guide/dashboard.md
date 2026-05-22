@@ -41,3 +41,9 @@ In the bottom section of the Dashboard you will find:
 - **Approval status**: Indicates how many cards are approved, pending, broken, or rejected
 - **Data quality**: Overall percentage of information completeness across all cards
 - **Recent activity**: A feed of the latest changes — who edited what and when
+
+## Workspace tab
+
+The **Workspace** tab pulls together everything assigned to you: favorites, todos, pending surveys, recent activity on your cards, and the **Cards I Have a Role In** section.
+
+That last section groups cards by the stakeholder role you hold (Application Owner, Business Owner, etc.) and lists the cards under each. If your role grants the `stakeholders.view` permission (admin, member and viewer roles by default), a small **person search** icon next to the section title lets you point it at **someone else** — pick a user from the autocomplete and the section refetches and re-renders with that user's roles and cards. The section title flips to "Roles held by {name}". Click the small close icon to return to your own roles. Useful for answering "what does this person own?" in one click.

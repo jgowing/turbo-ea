@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.25.0] - 2026-05-22
+
+### Added
+- **Workspace → My roles: look up another user.** The "Cards I Have a Role In" section on the Workspace tab of the home dashboard now offers a small person-search picker (visible to anyone with `stakeholders.view`, which is most roles by default). Pick a user and the section refetches with `GET /cards/my-stakeholder?user_id={id}`, then re-renders in the same role-grouped layout but for that user. Section title flips to "Roles held by {name}"; the close icon reverts to your own roles. Answers "who owns what?" without leaving the dashboard.
+
 ## [1.24.1] - 2026-05-21
 
 ### Fixed

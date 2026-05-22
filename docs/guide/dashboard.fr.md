@@ -41,3 +41,9 @@ Dans la section inférieure du tableau de bord, vous trouverez :
 - **Statut d'approbation** : Indique combien de fiches sont approuvées, en attente, cassées ou rejetées
 - **Qualité des données** : Pourcentage global de complétude des informations sur toutes les fiches
 - **Activité récente** : Un fil des derniers changements -- qui a modifié quoi et quand
+
+## Onglet «Espace de travail»
+
+L'onglet **Espace de travail** rassemble tout ce qui vous est assigné : favoris, tâches, sondages en attente, activité récente sur vos cartes et la section **Cartes où j'ai un rôle**.
+
+Cette dernière groupe les cartes par rôle de partie prenante que vous occupez (Application Owner, Business Owner, etc.) et liste les cartes sous chaque rôle. Si votre rôle accorde la permission `stakeholders.view` (admin, member et viewer par défaut), une petite icône **person_search** apparaît à côté du titre de la section : sélectionnez un utilisateur dans l'autocomplétion et la section se recharge avec ses rôles et ses cartes. Le titre devient «Rôles tenus par {name}». Cliquez sur la petite icône de fermeture pour revenir à vos propres rôles. Utile pour répondre à «que possède cette personne ?» en un clic.

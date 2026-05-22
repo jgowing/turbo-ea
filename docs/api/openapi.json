@@ -16032,7 +16032,7 @@
     },
     "/api/v1/cards/my-stakeholder": {
       "get": {
-        "description": "Cards on which the current user holds at least one stakeholder role.\n\nReturns cards plus a ``roles_by_card_id`` map keyed by card id, where\neach entry is a list of role descriptors ``{key, label, color,\ntranslations}`` resolved from the matching ``StakeholderRoleDefinition``\nfor the card's type. The frontend uses ``label`` + ``translations`` to\nrender a localised role chip per role.",
+        "description": "Cards on which the target user holds at least one stakeholder role.\n\nDefaults to the **current user** so the legacy\n``GET /cards/my-stakeholder`` (no query params) keeps powering the\nWorkspace \u2192 \"My roles\" dashboard section without changes.\n\nPass ``?user_id=<uuid>`` to look up another user's stakeholder\nportfolio \u2014 the Workspace section reuses this to offer a \"view as\nanother user\" picker. Cross-user lookups require ``stakeholders.view``.\n\nReturns cards plus a ``roles_by_card_id`` map keyed by card id, where\neach entry is a list of role descriptors ``{key, label, color,\ntranslations}`` resolved from the matching ``StakeholderRoleDefinition``\nfor the card's type. The frontend uses ``label`` + ``translations`` to\nrender a localised role chip per role.",
         "operationId": "list_my_stakeholder_cards_api_v1_cards_my_stakeholder_get",
         "parameters": [
           {
@@ -16045,6 +16045,25 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Look up another user's stakeholder cards instead of your own. When omitted (or equal to the caller's id) returns the current user \u2014 same as the no-arg behaviour. When set to another user's id, requires the `stakeholders.view` permission.",
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Look up another user's stakeholder cards instead of your own. When omitted (or equal to the caller's id) returns the current user \u2014 same as the no-arg behaviour. When set to another user's id, requires the `stakeholders.view` permission.",
+              "title": "User Id"
             }
           }
         ],

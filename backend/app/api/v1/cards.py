@@ -534,8 +534,25 @@ async def list_my_stakeholder_cards(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     limit: int = Query(200, ge=1, le=500),
+    user_id: uuid.UUID | None = Query(
+        None,
+        description=(
+            "Look up another user's stakeholder cards instead of your own. "
+            "When omitted (or equal to the caller's id) returns the current "
+            "user — same as the no-arg behaviour. When set to another user's "
+            "id, requires the `stakeholders.view` permission."
+        ),
+    ),
 ):
-    """Cards on which the current user holds at least one stakeholder role.
+    """Cards on which the target user holds at least one stakeholder role.
+
+    Defaults to the **current user** so the legacy
+    ``GET /cards/my-stakeholder`` (no query params) keeps powering the
+    Workspace → "My roles" dashboard section without changes.
+
+    Pass ``?user_id=<uuid>`` to look up another user's stakeholder
+    portfolio — the Workspace section reuses this to offer a "view as
+    another user" picker. Cross-user lookups require ``stakeholders.view``.
 
     Returns cards plus a ``roles_by_card_id`` map keyed by card id, where
     each entry is a list of role descriptors ``{key, label, color,
@@ -543,7 +560,16 @@ async def list_my_stakeholder_cards(
     for the card's type. The frontend uses ``label`` + ``translations`` to
     render a localised role chip per role.
     """
+    target_user_id = user_id if user_id is not None else user.id
+
+    # Self-lookups need the same gate as the rest of the workspace; cross-user
+    # lookups additionally require `stakeholders.view`.
     await PermissionService.require_permission(db, user, "inventory.view")
+    if target_user_id != user.id:
+        target = await db.get(User, target_user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        await PermissionService.require_permission(db, user, "stakeholders.view")
 
     hidden_types_sq = select(CardType.key).where(CardType.is_hidden == True)  # noqa: E712
 
@@ -552,7 +578,7 @@ async def list_my_stakeholder_cards(
             Stakeholder.card_id.label("card_id"),
             func.array_agg(Stakeholder.role).label("roles"),
         )
-        .where(Stakeholder.user_id == user.id)
+        .where(Stakeholder.user_id == target_user_id)
         .group_by(Stakeholder.card_id)
         .subquery()
     )

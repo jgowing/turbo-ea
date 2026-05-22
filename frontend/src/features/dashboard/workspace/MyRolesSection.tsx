@@ -1,12 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
+import IconButton from "@mui/material/IconButton";
 import LinearProgress from "@mui/material/LinearProgress";
+import TextField from "@mui/material/TextField";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { api } from "@/api/client";
+import MaterialSymbol from "@/components/MaterialSymbol";
+import { useAuthContext } from "@/hooks/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useResolveLabel } from "@/hooks/useResolveLabel";
-import type { Card as CardType, TranslationMap } from "@/types";
+import type { Card as CardType, TranslationMap, User } from "@/types";
 import CardTypePill from "./CardTypePill";
 import SectionPaper, { EmptyState } from "./SectionPaper";
 
@@ -33,19 +40,65 @@ export default function MyRolesSection() {
   const { t } = useTranslation("common");
   const navigate = useNavigate();
   const rl = useResolveLabel();
+  const { user: currentUser } = useAuthContext();
+  const { can } = usePermissions(currentUser);
+  const canViewOthers = can("stakeholders.view");
+
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CardType[]>([]);
   const [rolesByCard, setRolesByCard] = useState<Record<string, RoleDescriptor[]>>({});
 
+  // null = look up self. Picking a user (id !== current user) refetches with
+  // ?user_id=… so the section can show another user's stakeholder portfolio.
+  const [pickedUser, setPickedUser] = useState<User | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerUsers, setPickerUsers] = useState<User[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+
+  const targetName = pickedUser?.display_name ?? null;
+
+  // Fetch users for the picker the first time it opens. Users tend to be a
+  // small enough list to grab once and filter client-side, same pattern as
+  // StakeholdersTab.
   useEffect(() => {
+    if (!showPicker || pickerUsers.length > 0) return;
+    let cancelled = false;
+    setPickerLoading(true);
     api
-      .get<MyStakeholderResponse>("/cards/my-stakeholder")
+      .get<User[]>("/users")
       .then((data) => {
+        if (cancelled) return;
+        // Exclude the current user — picking yourself is the default state.
+        setPickerUsers(data.filter((u) => u.id !== currentUser?.id));
+      })
+      .finally(() => {
+        if (!cancelled) setPickerLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showPicker, pickerUsers.length, currentUser?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const url = pickedUser
+      ? `/cards/my-stakeholder?user_id=${encodeURIComponent(pickedUser.id)}`
+      : "/cards/my-stakeholder";
+    api
+      .get<MyStakeholderResponse>(url)
+      .then((data) => {
+        if (cancelled) return;
         setItems(data.items);
         setRolesByCard(data.roles_by_card_id || {});
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickedUser]);
 
   // Invert items × roles_by_card_id into one bucket per role.
   const groups = useMemo<RoleGroup[]>(() => {
@@ -63,16 +116,79 @@ export default function MyRolesSection() {
     return Array.from(buckets.values()).sort((a, b) => b.cards.length - a.cards.length);
   }, [items, rolesByCard]);
 
+  const clearPickedUser = useCallback(() => {
+    setPickedUser(null);
+    setShowPicker(false);
+  }, []);
+
+  const title = targetName
+    ? t("dashboard.workspace.rolesHeldBy", { name: targetName })
+    : t("dashboard.workspace.myRoles");
+  const emptyMessage = targetName
+    ? t("dashboard.workspace.empty.rolesForUser", { name: targetName })
+    : t("dashboard.workspace.empty.roles");
+
+  const headerAction = canViewOthers ? (
+    showPicker || pickedUser ? (
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Autocomplete<User, false, false, false>
+          size="small"
+          sx={{ minWidth: 200 }}
+          options={pickerUsers}
+          loading={pickerLoading}
+          value={pickedUser}
+          getOptionLabel={(u) => u.display_name || u.email}
+          isOptionEqualToValue={(a, b) => a.id === b.id}
+          filterOptions={(opts, { inputValue }) => {
+            const q = inputValue.trim().toLowerCase();
+            if (!q) return opts;
+            return opts.filter(
+              (u) =>
+                (u.display_name || "").toLowerCase().includes(q) ||
+                (u.email || "").toLowerCase().includes(q),
+            );
+          }}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>
+              <Box sx={{ display: "flex", flexDirection: "column", py: 0.25 }}>
+                <Typography variant="body2">{option.display_name}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {option.email}
+                </Typography>
+              </Box>
+            </li>
+          )}
+          onChange={(_, next) => setPickedUser(next)}
+          renderInput={(params) => (
+            <TextField {...params} placeholder={t("dashboard.workspace.viewAsUser")} />
+          )}
+        />
+        <Tooltip title={t("dashboard.workspace.viewAsUserClear")}>
+          <IconButton size="small" onClick={clearPickedUser}>
+            <MaterialSymbol icon="close" size={18} />
+          </IconButton>
+        </Tooltip>
+      </Box>
+    ) : (
+      <Tooltip title={t("dashboard.workspace.viewAsUser")}>
+        <IconButton size="small" onClick={() => setShowPicker(true)} aria-label={t("dashboard.workspace.viewAsUser")}>
+          <MaterialSymbol icon="person_search" size={18} />
+        </IconButton>
+      </Tooltip>
+    )
+  ) : undefined;
+
   return (
     <SectionPaper
       icon="groups"
       iconColor="#1976d2"
-      title={t("dashboard.workspace.myRoles")}
+      title={title}
+      action={headerAction}
     >
       {loading ? (
         <LinearProgress />
       ) : groups.length === 0 ? (
-        <EmptyState message={t("dashboard.workspace.empty.roles")} />
+        <EmptyState message={emptyMessage} />
       ) : (
         <Box>
           {groups.map(({ role, cards }) => {
