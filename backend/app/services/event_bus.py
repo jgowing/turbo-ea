@@ -67,8 +67,18 @@ class EventBus:
             from app.models.mutation_batch import MutationBatch
 
             endpoint = request_endpoint.get()
+            # ``mutation_batches.tool_name`` is ``String(100)``. Real
+            # routes with two embedded UUIDs (e.g. ``PATCH /api/v1/risks/
+            # <uuid>/cards/<uuid>`` = 99 chars,
+            # ``POST /api/v1/diagrams/<uuid>/cards/<uuid>`` = 101 chars,
+            # ``POST /api/v1/mitigation-tasks/<uuid>/occurrences/<uuid>/
+            # complete`` = 124 chars) blow that cap and PG raises
+            # ``22001 value too long``. Truncate so any sufficiently
+            # long path still fits — losing the tail of one UUID is an
+            # acceptable trade-off for the audit-log Tool column.
+            tool_label = (endpoint or f"event:{event_type}")[:100]
             auto = MutationBatch(
-                tool_name=endpoint or f"event:{event_type}",
+                tool_name=tool_label,
                 actor_user_id=user_id,
                 origin=origin or "api",
                 dry_run=False,
