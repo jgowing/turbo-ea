@@ -42,7 +42,7 @@ jobs:
       # before an upstream fix is available. Never fails the job; the gate
       # step below is responsible for that.
       - name: Trivy scan (observe, HIGH + CRITICAL, incl. unfixed)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
           format: sarif
@@ -63,7 +63,7 @@ jobs:
       # isn't on the allowlist. Mirrors the publish workflow's gate so the
       # two stay in lock-step.
       - name: Trivy gate (CRITICAL only, fixed)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
           format: table
