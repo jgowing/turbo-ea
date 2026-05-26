@@ -11450,7 +11450,8 @@
               {
                 "enum": [
                   "overview",
-                  "workspace"
+                  "workspace",
+                  "admin"
                 ],
                 "type": "string"
               },
