@@ -19,6 +19,7 @@ from app.services.migration.sources.leanix.mappings import (
 )
 from app.services.migration.staging import (
     _compare_relation_attrs,
+    _looks_like_email,
     _normalise_tag_group_mode,
     build_card_payload,
     compute_card_diff,
@@ -232,3 +233,26 @@ def test_compute_card_diff_surfaces_attribute_changes() -> None:
     assert diff["lifecycle"]["new"] == {"active": "2020-01-01", "phaseOut": "2027-01-01"}
     assert diff["attributes"]["vendor"] == {"old": "old-vendor", "new": "new-vendor"}
     assert diff["attributes"]["newField"] == {"old": None, "new": "x"}
+
+
+def test_looks_like_email_accepts_real_addresses() -> None:
+    assert _looks_like_email("john.doe@example.com")
+    assert _looks_like_email("a+b@sub.example.co.uk")
+
+
+def test_looks_like_email_rejects_combined_unsplit_cells() -> None:
+    # The bug we're guarding against: a LeanIX Full Snapshot ``;``-delimited
+    # subscription cell that slipped through the splitter must be flagged
+    # as malformed so it doesn't land as a real user.
+    assert not _looks_like_email("john.doe@example.com;jane.doe@example.com")
+    assert not _looks_like_email("a@x.com, b@x.com")
+
+
+def test_looks_like_email_rejects_obvious_garbage() -> None:
+    assert not _looks_like_email("")
+    assert not _looks_like_email("not-an-email")
+    assert not _looks_like_email("a@b")  # no dot in host
+    assert not _looks_like_email("@example.com")
+    assert not _looks_like_email("alice@")
+    assert not _looks_like_email("alice@@example.com")
+    assert not _looks_like_email("alice example@example.com")

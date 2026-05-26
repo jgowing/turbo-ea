@@ -66,7 +66,7 @@ async def apply_migration(
     ``migration.stats``. Errors are kept per-pass so the admin can see
     which entity kind failed even when later passes succeed.
     """
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     per_pass: dict[str, dict[str, int]] = {}
 
     for pass_name, runner in (
@@ -86,7 +86,10 @@ async def apply_migration(
         pass_counts = await runner(db, migration, user)
         per_pass[pass_name] = pass_counts
         for k, v in pass_counts.items():
-            counts[k] += v
+            # ``conflicts`` is opt-in per pass — passes that haven't been
+            # updated yet still report under ``skipped`` only. Aggregate
+            # whichever shape they return.
+            counts[k] = counts.get(k, 0) + v
 
     counts["per_pass"] = per_pass  # type: ignore[assignment]
     return counts
@@ -97,12 +100,89 @@ async def apply_migration(
 # ---------------------------------------------------------------------------
 
 
+# Lifecycle-target sentinel must stay in lockstep with
+# ``LIFECYCLE_TARGET_PREFIX`` in ``app.api.v1.migration``.
+_LIFECYCLE_PREFIX = "__lifecycle__:"
+
+
+def _coerce_lifecycle_date(value: Any) -> str | None:
+    """Coerce an arbitrary attribute value into a ``YYYY-MM-DD`` string.
+
+    Card lifecycle slots are date-only ISO strings (see how the LeanIX
+    parser writes them in ``xlsx_parser._coerce_datetime``). When the
+    admin maps a custom date / datetime / text column onto a lifecycle
+    phase, the value may arrive as ``"2027-06-30"``, ``"2027-06-30T00:00:00"``,
+    ``"2027-06-30T00:00:00+00:00"``, an ``int`` timestamp, or a parser
+    fallback string. We accept the first 10 chars of any ISO-shaped
+    string (that's the ``YYYY-MM-DD`` prefix); empty / unparseable
+    values are dropped so they don't pollute the lifecycle map.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        # ISO 8601 strings always start with YYYY-MM-DD; anything else
+        # (free text, "TBD", a vendor name) is not a valid lifecycle
+        # date and is silently dropped.
+        head = s[:10]
+        if len(head) == 10 and head[4] == "-" and head[7] == "-":
+            return head
+        return None
+    # Datetimes / dates that survived JSON serialisation as objects
+    # (very rare on the staging path, but handle it for safety).
+    iso = getattr(value, "isoformat", None)
+    if callable(iso):
+        try:
+            return str(iso())[:10]
+        except Exception:  # noqa: BLE001
+            return None
+    return None
+
+
+def _remap_attributes(
+    attributes: dict[str, Any],
+    mapping: dict[str, str],
+    *,
+    lifecycle: dict[str, str] | None = None,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Rewrite attribute keys using the admin's per-type field mapping.
+
+    Returns the rewritten ``attributes`` dict and a (possibly extended)
+    ``lifecycle`` dict — admins can route a custom date attribute onto
+    a standard lifecycle phase via the ``__lifecycle__:<phase>``
+    sentinel key. Empty string / ``None`` / missing key in the mapping
+    passes through unchanged. The literal ``"__skip__"`` target drops
+    the value. Lifecycle-targeted values that don't parse as
+    ``YYYY-MM-DD`` are dropped silently (better than corrupting the
+    lifecycle slot with garbage). Last-write-wins if two source keys
+    map onto the same TEA key.
+    """
+    out_attrs: dict[str, Any] = {}
+    out_lifecycle: dict[str, str] = dict(lifecycle or {})
+    for native_key, value in attributes.items():
+        target = mapping.get(native_key)
+        if target == "__skip__":
+            continue
+        if target and target.startswith(_LIFECYCLE_PREFIX):
+            phase = target[len(_LIFECYCLE_PREFIX) :]
+            coerced = _coerce_lifecycle_date(value)
+            if coerced and phase:
+                out_lifecycle[phase] = coerced
+            # Either way the value never lands back in ``attributes``.
+            continue
+        out_attrs[target or native_key] = value
+    return out_attrs, out_lifecycle
+
+
 async def _apply_card_pass(
     db: AsyncSession,
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
+    field_mappings = migration.field_mappings or {}
 
     rows = list(
         (
@@ -144,12 +224,12 @@ async def _apply_card_pass(
             staged.status = "applied"
             continue
         if staged.action == "conflict":
-            counts["skipped"] += 1
+            counts["conflicts"] += 1
             staged.status = "applied"  # conflict was already surfaced; treat as terminal
             continue
 
         try:
-            await _apply_single_card(db, staged, user)
+            await _apply_single_card(db, staged, user, field_mappings=field_mappings)
             counts["created" if staged.action == "create" else "updated"] += 1
             staged.status = "applied"
         except Exception as exc:  # noqa: BLE001 — collect, don't crash the pass
@@ -166,8 +246,32 @@ async def _apply_single_card(
     db: AsyncSession,
     staged: StagedRecord,
     user: User,
+    field_mappings: dict[str, dict[str, str]] | None = None,
 ) -> None:
     payload = (staged.source_data or {}).get("payload") or {}
+    raw = (staged.source_data or {}).get("raw") or {}
+    native_type = raw.get("type")
+    # Honour the per-migration field mapping: rewrite custom-field keys
+    # (still in their native source names inside ``attributes``) to the
+    # admin's chosen Turbo EA field keys. Custom date columns routed
+    # onto a standard lifecycle phase via the ``__lifecycle__:<phase>``
+    # sentinel get coerced to ``YYYY-MM-DD`` and folded into
+    # ``payload['lifecycle']`` instead of staying in ``attributes``.
+    # Unmapped keys pass through unchanged and land as new custom
+    # attributes via the metamodel pass.
+    if field_mappings and native_type:
+        mapping_for_type = field_mappings.get(native_type) or {}
+        if mapping_for_type and payload.get("attributes"):
+            new_attrs, new_lifecycle = _remap_attributes(
+                payload["attributes"],
+                mapping_for_type,
+                lifecycle=payload.get("lifecycle") or {},
+            )
+            payload = {
+                **payload,
+                "attributes": new_attrs,
+                "lifecycle": new_lifecycle,
+            }
     parent_id = await _resolve_parent_card_id(db, staged)
 
     if staged.action == "create":
@@ -349,7 +453,7 @@ async def _apply_tag_group_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -395,7 +499,7 @@ async def _apply_tag_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     # Build group-name → group_id index from the freshly-applied tag_group rows.
     group_rows = (
         (
@@ -473,7 +577,7 @@ async def _apply_card_tag_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -533,7 +637,7 @@ async def _apply_relation_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -548,7 +652,7 @@ async def _apply_relation_pass(
     )
     for staged in rows:
         if staged.action == "conflict":
-            counts["skipped"] += 1
+            counts["conflicts"] += 1
             staged.status = "applied"
             continue
         try:
@@ -675,7 +779,7 @@ async def _apply_metamodel_type_pass(
     user: User,
 ) -> dict[str, int]:
     """Create new (non-builtin) card types for custom native entity types."""
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -753,8 +857,9 @@ async def _apply_metamodel_field_pass(
     ``Imported from {source}`` section so customers can recognise what
     came from the migration.
     """
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     section_name = f"Imported from {migration.source_type}"
+    field_mappings = migration.field_mappings or {}
     rows = (
         (
             await db.execute(
@@ -775,6 +880,20 @@ async def _apply_metamodel_field_pass(
                 continue
             payload = staged.source_data or {}
             type_key = payload["target_type"]
+            # Skip materialising the metamodel field when the admin has
+            # remapped this native field to an existing TEA field on the
+            # target type (or explicitly dropped it). The card pass
+            # already rewrites the attribute key on the way in.
+            #
+            # ``source_id`` is shaped ``<native_type>:<field_key>`` so we
+            # can look the mapping up without a second query.
+            native_type, _, _ = staged.source_id.partition(":")
+            type_mapping = field_mappings.get(native_type) or {}
+            mapped_target = type_mapping.get(payload.get("field_key", ""))
+            if mapped_target:
+                counts["skipped"] += 1
+                staged.status = "applied"
+                continue
             ct = (
                 await db.execute(select(CardType).where(CardType.key == type_key))
             ).scalar_one_or_none()
@@ -836,7 +955,7 @@ async def _apply_metamodel_relation_type_pass(
     user: User,
 ) -> dict[str, int]:
     """Create new (non-builtin) relation types for custom native relations."""
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -910,7 +1029,7 @@ async def _apply_user_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -966,7 +1085,7 @@ async def _apply_subscription_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -981,7 +1100,7 @@ async def _apply_subscription_pass(
     )
     for staged in rows:
         if staged.action == "conflict":
-            counts["skipped"] += 1
+            counts["conflicts"] += 1
             staged.status = "applied"
             continue
         try:
@@ -1042,7 +1161,7 @@ async def _apply_document_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(
@@ -1057,7 +1176,7 @@ async def _apply_document_pass(
     )
     for staged in rows:
         if staged.action == "conflict":
-            counts["skipped"] += 1
+            counts["conflicts"] += 1
             staged.status = "applied"
             continue
         try:
@@ -1102,7 +1221,7 @@ async def _apply_comment_pass(
     migration: Migration,
     user: User,
 ) -> dict[str, int]:
-    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "errors": 0, "conflicts": 0}
     rows = (
         (
             await db.execute(

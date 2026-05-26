@@ -51,6 +51,14 @@ class Migration(UUIDMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="uploaded")
     stats: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     metamodel_diff: Mapped[dict | None] = mapped_column(JSONB, default=dict)
+    # Admin-configured override of how source platform fields map to
+    # Turbo EA card-type fields. Shape:
+    # ``{<source_native_type>: {<source_field_key>: <tea_field_key>}}``.
+    # Empty/``None`` means "fall through to the default — every custom
+    # field becomes a new attribute under the synthetic ``Imported
+    # from {source}`` section." Set per migration via the
+    # ``PUT /migration/{id}/field-mappings`` endpoint.
+    field_mappings: Mapped[dict | None] = mapped_column(JSONB, default=dict)
     parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

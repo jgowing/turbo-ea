@@ -688,6 +688,29 @@ async def stage_tags(
     return stats
 
 
+def _looks_like_email(value: str) -> bool:
+    """Lenient ``user@host`` check for the user-staging pass.
+
+    We're not validating deliverability — only catching values that
+    obviously aren't email addresses (unsplit delimiter cells like
+    ``a@x.com;b@x.com``, free-text display names, header rows that
+    leaked into the data). Anything with exactly one ``@``, at least
+    one character on either side, and no whitespace or delimiter
+    characters passes.
+    """
+    if not value or "@" not in value:
+        return False
+    if any(ch in value for ch in (";", ",", " ", "\t", "\n")):
+        return False
+    local, _, host = value.partition("@")
+    if not local or not host or "@" in host:
+        return False
+    # Require at least one dot in the host (rejects ``a@b`` which is
+    # syntactically valid RFC 5321 but never appears in real LeanIX
+    # exports and is almost always a parser slip).
+    return "." in host
+
+
 def _normalise_tag_group_mode(native_mode: str | None) -> str:
     if not native_mode:
         return "multi"
@@ -730,15 +753,23 @@ async def stage_users_and_subscriptions(
         )
     )
 
-    user_stats = {"create": 0, "skip": 0, "missing_email": 0}
+    user_stats = {"create": 0, "skip": 0, "missing_email": 0, "invalid_email": 0}
     sub_stats = {"create": 0, "skip": 0, "conflict": 0}
 
     # ---- User pass: collect every distinct (email, display_name) ----
     distinct_users: dict[str, dict[str, Any]] = {}
+    invalid_emails: dict[str, str] = {}  # raw value -> display_name candidate
     for sub in snapshot.subscriptions:
         email = (sub.user_email or "").strip().lower()
         if not email:
             user_stats["missing_email"] += 1
+            continue
+        if not _looks_like_email(email):
+            # A malformed email (no ``@``, or an unsplit delimiter slipped
+            # through — e.g. ``a@x.com;b@x.com``) must not land as a
+            # user-create row. Stage it as ``conflict`` so the admin
+            # sees it in the preview and can fix the source export.
+            invalid_emails.setdefault(email, sub.user_display_name or email)
             continue
         if email not in distinct_users:
             distinct_users[email] = {
@@ -748,7 +779,12 @@ async def stage_users_and_subscriptions(
     # The snapshot may also expose a top-level users[] section that
     # carries users without active subscriptions — also stage those.
     for u in snapshot.users:
-        if u.email and u.email not in distinct_users:
+        if not u.email:
+            continue
+        if not _looks_like_email(u.email):
+            invalid_emails.setdefault(u.email, u.display_name or u.email)
+            continue
+        if u.email not in distinct_users:
             distinct_users[u.email] = {
                 "email": u.email,
                 "display_name": u.display_name or u.email,
@@ -784,11 +820,36 @@ async def stage_users_and_subscriptions(
                 )
             )
 
+    for raw_email, display_name in invalid_emails.items():
+        user_stats["invalid_email"] += 1
+        db.add(
+            StagedRecord(
+                id=uuid.uuid4(),
+                migration_id=migration.id,
+                source_type=migration.source_type,
+                entity_kind="user",
+                source_id=raw_email,
+                source_data={"email": raw_email, "display_name": display_name},
+                action="conflict",
+                diff={
+                    "reason": (
+                        "Malformed email — value is not a valid address (missing '@' or "
+                        "delimiter not split). Fix the source export and re-upload."
+                    )
+                },
+            )
+        )
+
     # ---- Subscription pass ----
     for sub in snapshot.subscriptions:
         email = (sub.user_email or "").strip().lower()
-        if not email:
+        if not email or not _looks_like_email(email):
             sub_stats["conflict"] += 1
+            reason = (
+                "Subscription has no user email — cannot resolve"
+                if not email
+                else f"Subscription user email {email!r} is malformed — cannot resolve"
+            )
             db.add(
                 StagedRecord(
                     id=uuid.uuid4(),
@@ -798,11 +859,12 @@ async def stage_users_and_subscriptions(
                     source_id=sub.source_id or f"{sub.entity_id}:noemail",
                     source_data={
                         "entity_id": sub.entity_id,
+                        "user_email": email or None,
                         "role_name": sub.role_name,
                         "role_type": sub.role_type,
                     },
                     action="conflict",
-                    diff={"reason": "Subscription has no user email — cannot resolve"},
+                    diff={"reason": reason},
                 )
             )
             continue

@@ -55,9 +55,11 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified as flag_jsonb_modified
 
 from app.api.deps import get_current_user
 from app.database import async_session, get_db
+from app.models.card_type import CardType
 from app.models.migration import Migration, StagedRecord
 from app.models.user import User
 from app.services.migration.apply import apply_migration
@@ -105,6 +107,7 @@ class MigrationOut(BaseModel):
     snapshot_version: str | None
     stats: dict | None
     metamodel_diff: dict | None
+    field_mappings: dict | None
     error_message: str | None
     parsed_at: str | None
     applied_at: str | None
@@ -123,6 +126,12 @@ class StagedRecordOut(BaseModel):
     diff: dict | None
     error_message: str | None
     target_id: str | None
+    # Human-readable label for the row — card name for ``card``, field
+    # label for ``metamodel_field``, user display-name for ``user``,
+    # etc. Computed server-side from ``source_data`` so the response
+    # stays compact (we don't send the full payload over the wire on
+    # 10 000-row previews).
+    display_name: str | None = None
 
 
 class PreviewPage(BaseModel):
@@ -143,12 +152,61 @@ def _migration_to_out(m: Migration) -> MigrationOut:
         snapshot_version=m.snapshot_version,
         stats=m.stats,
         metamodel_diff=m.metamodel_diff,
+        field_mappings=m.field_mappings or {},
         error_message=m.error_message,
         parsed_at=m.parsed_at.isoformat() if m.parsed_at else None,
         applied_at=m.applied_at.isoformat() if m.applied_at else None,
         created_at=m.created_at.isoformat() if m.created_at else None,
         updated_at=m.updated_at.isoformat() if m.updated_at else None,
     )
+
+
+def _compute_display_name(r: StagedRecord) -> str | None:
+    """Best-effort human-readable label per staged-record kind.
+
+    Pulls from ``source_data`` so the wire payload only carries the one
+    string the admin UI actually needs to render — cards on a 10 000-row
+    preview would otherwise blow up the response with full attribute
+    payloads. Returns ``None`` when nothing better than ``source_id`` is
+    available; the frontend falls back to ``source_id`` in that case.
+    """
+    sd = r.source_data or {}
+    kind = r.entity_kind
+    if kind == "card":
+        payload = sd.get("payload") or {}
+        name = payload.get("name") or payload.get("displayName")
+        return str(name) if name else None
+    if kind == "metamodel_field":
+        # Surface the field's display label; fall back to its key.
+        name = sd.get("label") or sd.get("field_key")
+        return str(name) if name else None
+    if kind == "metamodel_type":
+        name = sd.get("proposed_tea_key") or sd.get("native_name")
+        return str(name) if name else None
+    if kind == "metamodel_relation_type":
+        name = sd.get("label") or sd.get("native_name")
+        return str(name) if name else None
+    if kind == "user":
+        name = sd.get("display_name") or sd.get("email")
+        return str(name) if name else None
+    if kind == "tag" or kind == "tag_group":
+        name = sd.get("name") or sd.get("group_name")
+        return str(name) if name else None
+    if kind == "relation":
+        # ``source_data`` carries the resolved ``type`` plus the
+        # endpoint source ids; the type alone is the most useful label.
+        name = sd.get("type") or sd.get("native_type")
+        return str(name) if name else None
+    if kind == "subscription":
+        email = sd.get("user_email")
+        role = sd.get("role_name") or sd.get("role_type")
+        if email and role:
+            return f"{email} ({role})"
+        return str(email) if email else None
+    if kind == "document" or kind == "comment":
+        name = sd.get("name") or sd.get("title")
+        return str(name) if name else None
+    return None
 
 
 def _staged_to_out(r: StagedRecord) -> StagedRecordOut:
@@ -163,6 +221,7 @@ def _staged_to_out(r: StagedRecord) -> StagedRecordOut:
         diff=r.diff,
         error_message=r.error_message,
         target_id=str(r.target_id) if r.target_id else None,
+        display_name=_compute_display_name(r),
     )
 
 
@@ -287,7 +346,15 @@ async def preview_migration(
     card_type_key: str | None = Query(None),
     action: str | None = Query(None, description="filter by action: create/update/skip/conflict"),
     offset: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500),
+    # Big LeanIX exports can stage thousands of rows in a single bucket
+    # (the demo snapshot lands 272 ``metamodel_field`` rows; real
+    # customer tenants land tens of thousands of ``card`` rows). The
+    # admin UI pulls one page per tab and filters client-side, so the
+    # cap needs to be high enough that "show everything for this kind"
+    # works in one request. 10 000 is well below what the JSON payload
+    # can carry without paging woes (each ``StagedRecordOut`` is
+    # ~500 B → ~5 MB) and is plenty for the snapshots we've seen.
+    limit: int = Query(100, ge=1, le=10000),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> PreviewPage:
@@ -313,6 +380,262 @@ async def preview_migration(
         offset=offset,
         limit=limit,
     )
+
+
+class TargetFieldOption(BaseModel):
+    """One Turbo EA field that an admin can map a source field onto."""
+
+    key: str
+    label: str
+    type: str
+    section: str | None = None
+
+
+class SourceFieldRow(BaseModel):
+    """One source-platform custom field discovered in the snapshot."""
+
+    source_field_key: str
+    label: str | None
+    native_data_type: str | None
+    tea_type: str | None  # the parser's inferred type
+    target_tea_type: str  # resolved TEA card-type key (e.g. ``Application``)
+    mapped_to: str | None  # admin's current mapping (``None`` / ``""`` = unmapped)
+
+
+class FieldMappingTypeBlock(BaseModel):
+    native_type: str
+    target_tea_type: str
+    target_type_label: str
+    source_fields: list[SourceFieldRow]
+    available_targets: list[TargetFieldOption]
+
+
+class FieldMappingOptions(BaseModel):
+    """Payload for the field-mapping admin UI.
+
+    One block per ``(native_type, target_tea_type)`` pair surfacing the
+    source fields the parser discovered alongside the list of TEA
+    target fields the admin can map them onto.
+    """
+
+    blocks: list[FieldMappingTypeBlock]
+
+
+class FieldMappingUpdate(BaseModel):
+    field_mappings: dict[str, dict[str, str]]
+
+
+# Standard Turbo EA lifecycle phases — mirrors ``frontend/src/features/
+# cards/sections/cardDetailUtils.tsx`` ``PHASES``. Exposed as
+# additional mapping targets keyed ``__lifecycle__:<phase>`` so admins
+# can route a LeanIX custom date field (e.g.
+# ``lxVendorLifecycle:endOfLife``) onto the standard ``endOfLife``
+# slot in ``card.lifecycle`` instead of landing it as a generic
+# custom date attribute. The apply pipeline detects the prefix and
+# coerces the value to ``YYYY-MM-DD`` before persisting.
+_LIFECYCLE_PHASES: tuple[tuple[str, str], ...] = (
+    ("plan", "Plan"),
+    ("phaseIn", "Phase In"),
+    ("active", "Active"),
+    ("phaseOut", "Phase Out"),
+    ("endOfLife", "End of Life"),
+)
+LIFECYCLE_TARGET_PREFIX = "__lifecycle__:"
+
+
+def _lifecycle_targets() -> list[TargetFieldOption]:
+    return [
+        TargetFieldOption(
+            key=f"{LIFECYCLE_TARGET_PREFIX}{phase}",
+            label=label,
+            type="date",
+            section="Lifecycle",
+        )
+        for phase, label in _LIFECYCLE_PHASES
+    ]
+
+
+def _collect_fields_schema_targets(card_type: CardType) -> list[TargetFieldOption]:
+    """Flatten ``fields_schema`` into a list of selectable target fields.
+
+    Skips the synthetic ``Imported from {source}`` sections so admins
+    don't map a fresh import onto a previous import's bucket. Also
+    skips the ``__description`` sentinel section which feeds into the
+    Description block on the card detail.
+    """
+    out: list[TargetFieldOption] = []
+    for section in card_type.fields_schema or []:
+        if not isinstance(section, dict):
+            continue
+        section_name = section.get("section")
+        if not isinstance(section_name, str):
+            continue
+        if section_name.startswith("Imported from "):
+            continue
+        if section_name == "__description":
+            continue
+        for f in section.get("fields") or []:
+            if not isinstance(f, dict):
+                continue
+            key = f.get("key")
+            if not isinstance(key, str) or not key:
+                continue
+            out.append(
+                TargetFieldOption(
+                    key=key,
+                    label=f.get("label") or key,
+                    type=f.get("type") or "text",
+                    section=section_name,
+                )
+            )
+    return out
+
+
+@router.get("/{migration_id}/field-mappings", response_model=FieldMappingOptions)
+async def get_field_mappings(
+    migration_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> FieldMappingOptions:
+    """Return source fields per type alongside the candidate TEA targets.
+
+    Drives the **Map fields** section of the migration detail dialog.
+    Available once the migration is in ``parsed`` / ``previewed`` /
+    ``applied`` / ``failed`` state — earlier states have no parsed
+    fields yet.
+    """
+    await PermissionService.require_permission(db, user, "admin.migrate")
+    m = await _load_migration(db, migration_id)
+
+    # Pull every staged metamodel_field row — those are the parser's
+    # discovered custom fields, already partitioned by target TEA type.
+    rows = (
+        (
+            await db.execute(
+                select(StagedRecord).where(
+                    StagedRecord.migration_id == migration_id,
+                    StagedRecord.entity_kind == "metamodel_field",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    # Group source fields by their resolved target TEA card-type key so
+    # the UI can render one mapping table per type.
+    blocks: dict[str, list[SourceFieldRow]] = {}
+    # ``native_type`` is the first segment of ``source_id`` (e.g.
+    # ``Application:criticality`` → ``Application``).
+    native_type_by_target: dict[str, str] = {}
+    for r in rows:
+        payload = r.source_data or {}
+        target_type = payload.get("target_type") or r.card_type_key
+        if not target_type:
+            continue
+        native_type, _, _ = (r.source_id or "").partition(":")
+        if not native_type:
+            continue
+        # Build the row.
+        current_mapping = ((m.field_mappings or {}).get(native_type) or {}).get(
+            payload.get("field_key") or "", None
+        )
+        blocks.setdefault(target_type, []).append(
+            SourceFieldRow(
+                source_field_key=payload.get("field_key") or "",
+                label=payload.get("label"),
+                native_data_type=payload.get("native_data_type"),
+                tea_type=payload.get("tea_type"),
+                target_tea_type=target_type,
+                mapped_to=current_mapping,
+            )
+        )
+        # First-seen wins — every staged field for a given target_type
+        # shares the same native_type in practice.
+        native_type_by_target.setdefault(target_type, native_type)
+
+    # Resolve the available TEA targets per type.
+    out: list[FieldMappingTypeBlock] = []
+    for target_type, field_rows in sorted(blocks.items()):
+        ct = (
+            await db.execute(select(CardType).where(CardType.key == target_type))
+        ).scalar_one_or_none()
+        if ct is None:
+            # Custom (yet-to-be-created) target type — no built-in
+            # ``fields_schema`` targets, but the lifecycle slots are
+            # available on every card regardless of type, so still
+            # offer those.
+            available: list[TargetFieldOption] = []
+            target_label = target_type
+        else:
+            available = _collect_fields_schema_targets(ct)
+            target_label = ct.label or target_type
+        # Lifecycle phases are universal — append once per block so the
+        # admin can route a custom date column (e.g.
+        # ``lxVendorLifecycle:endOfLife``) onto a standard phase. Sort
+        # the schema fields alphabetically by label, then the lifecycle
+        # slots in canonical order at the end so they're easy to find.
+        available_sorted = sorted(available, key=lambda o: o.label.lower())
+        available_sorted.extend(_lifecycle_targets())
+
+        out.append(
+            FieldMappingTypeBlock(
+                native_type=native_type_by_target[target_type],
+                target_tea_type=target_type,
+                target_type_label=target_label,
+                source_fields=sorted(field_rows, key=lambda r: r.source_field_key.lower()),
+                available_targets=available_sorted,
+            )
+        )
+
+    return FieldMappingOptions(blocks=out)
+
+
+@router.put("/{migration_id}/field-mappings", response_model=MigrationOut)
+async def update_field_mappings(
+    migration_id: uuid.UUID,
+    body: FieldMappingUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> MigrationOut:
+    """Persist the admin's mapping choices.
+
+    The payload is a nested dict
+    ``{<source_native_type>: {<source_field_key>: <tea_field_key>}}``.
+    Empty string values clear a mapping; the literal ``"__skip__"``
+    means "do not import this field at all".
+    """
+    await PermissionService.require_permission(db, user, "admin.migrate")
+    m = await _load_migration(db, migration_id)
+    if m.status not in {"parsed", "previewed"}:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Field mappings can only be edited while the migration is in "
+                f"'parsed' or 'previewed' state (current: {m.status!r})"
+            ),
+        )
+
+    # Clean the payload: drop empty mappings + empty type buckets so the
+    # stored JSON stays minimal.
+    cleaned: dict[str, dict[str, str]] = {}
+    for native_type, mapping in (body.field_mappings or {}).items():
+        if not isinstance(mapping, dict):
+            continue
+        kept = {k: v for k, v in mapping.items() if isinstance(v, str) and v}
+        if kept:
+            cleaned[native_type] = kept
+
+    m.field_mappings = cleaned
+    flag_jsonb_modified(m, "field_mappings")
+    # The mapping affects what the user expects to see on /apply — bump
+    # the migration into ``previewed`` so the UI's "ready to apply"
+    # affordance keeps working.
+    if m.status == "parsed":
+        m.status = "previewed"
+    await db.commit()
+    await db.refresh(m)
+    return _migration_to_out(m)
 
 
 @router.post("/{migration_id}/apply", response_model=MigrationOut, status_code=202)
@@ -513,8 +836,19 @@ async def _apply_job(migration_id_str: str, user_id_str: str) -> None:
             m.stats = {**(m.stats or {}), "apply": counts}
             m.status = "applied" if counts["errors"] == 0 else "failed"
             m.applied_at = datetime.now(timezone.utc)
+            # Errors abort the row but the migration record still lands as
+            # ``failed`` to draw attention. Conflicts are softer — the
+            # rows are skipped on purpose because the importer couldn't
+            # resolve them — but we still surface the count so the admin
+            # knows the snapshot didn't land 1:1.
+            messages: list[str] = []
             if counts["errors"]:
-                m.error_message = f"{counts['errors']} entity error(s) — see staged records"
+                messages.append(f"{counts['errors']} entity error(s)")
+            conflict_count = counts.get("conflicts", 0)
+            if conflict_count:
+                messages.append(f"{conflict_count} unresolved conflict(s) skipped")
+            if messages:
+                m.error_message = " · ".join(messages) + " — see staged records"
             await db.commit()
         except Exception as exc:  # noqa: BLE001
             logger.exception("migration apply job failed")

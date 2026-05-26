@@ -12,7 +12,9 @@ feature). Layout:
   ``type`` column inside the sheet for the canonical name).
 - Per-FS-row tag columns formatted as ``tags:<GroupName>`` with
   comma-separated values, subscription columns formatted as
-  ``subscriptions:<RoleType>:<RoleName>`` with comma-separated emails.
+  ``subscriptions:<RoleType>:<RoleName>`` with comma- *or* semicolon-
+  separated emails (LeanIX's "Full Snapshot" export uses ``;``, the
+  GraphQL CSV export uses ``,`` — we accept both).
 - Auxiliary sheets: ``TagGroups``, ``Tags``, ``Documents``,
   ``Comments``, ``Types`` (enum option lists), ``ReadMe`` (skipped).
 
@@ -290,11 +292,13 @@ def _parse_workbook(wb: Any) -> MigrationSnapshot:
                 parts = col.split(":")
                 if len(parts) == 2:
                     role_type = parts[1]
-                    bare_role_type_emails.setdefault(role_type, set()).update(_split_csv(value))
+                    bare_role_type_emails.setdefault(role_type, set()).update(_split_emails(value))
                 elif len(parts) >= 3:
                     role_type = parts[1]
                     role_name = ":".join(parts[2:])
-                    typed_emails.setdefault((role_type, role_name), set()).update(_split_csv(value))
+                    typed_emails.setdefault((role_type, role_name), set()).update(
+                        _split_emails(value)
+                    )
 
             covered_emails_by_type: dict[str, set[str]] = {}
             for (role_type, role_name), emails in typed_emails.items():
@@ -702,6 +706,23 @@ def _split_csv(value: Any) -> list[str]:
     if not s:
         return []
     return [chunk.strip() for chunk in s.split(",") if chunk.strip()]
+
+
+def _split_emails(value: Any) -> list[str]:
+    """Split a subscription cell into a list of email addresses.
+
+    LeanIX delimits emails with **either** ``,`` (GraphQL CSV export) or
+    ``;`` (the "Full Snapshot" xlsx export). Treating either as a
+    separator avoids creating one bogus "user" with a source id like
+    ``a@x.com;b@x.com`` when the snapshot uses semicolons.
+    """
+    s = _str_or_none(value)
+    if not s:
+        return []
+    # Normalise both delimiters into ``,`` and re-split. Whitespace
+    # padding around the delimiter is common (LeanIX sometimes prints
+    # ``a@x.com; b@x.com``) so we strip per chunk.
+    return [chunk.strip() for chunk in s.replace(";", ",").split(",") if chunk.strip()]
 
 
 def _norm_name(value: Any) -> str:

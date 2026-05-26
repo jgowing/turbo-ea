@@ -4115,6 +4115,23 @@
         "title": "FieldMappingIn",
         "type": "object"
       },
+      "FieldMappingOptions": {
+        "description": "Payload for the field-mapping admin UI.\n\nOne block per ``(native_type, target_tea_type)`` pair surfacing the\nsource fields the parser discovered alongside the list of TEA\ntarget fields the admin can map them onto.",
+        "properties": {
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/FieldMappingTypeBlock"
+            },
+            "title": "Blocks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "blocks"
+        ],
+        "title": "FieldMappingOptions",
+        "type": "object"
+      },
       "FieldMappingOut": {
         "properties": {
           "direction": {
@@ -4169,6 +4186,64 @@
           "is_identity"
         ],
         "title": "FieldMappingOut",
+        "type": "object"
+      },
+      "FieldMappingTypeBlock": {
+        "properties": {
+          "available_targets": {
+            "items": {
+              "$ref": "#/components/schemas/TargetFieldOption"
+            },
+            "title": "Available Targets",
+            "type": "array"
+          },
+          "native_type": {
+            "title": "Native Type",
+            "type": "string"
+          },
+          "source_fields": {
+            "items": {
+              "$ref": "#/components/schemas/SourceFieldRow"
+            },
+            "title": "Source Fields",
+            "type": "array"
+          },
+          "target_tea_type": {
+            "title": "Target Tea Type",
+            "type": "string"
+          },
+          "target_type_label": {
+            "title": "Target Type Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "native_type",
+          "target_tea_type",
+          "target_type_label",
+          "source_fields",
+          "available_targets"
+        ],
+        "title": "FieldMappingTypeBlock",
+        "type": "object"
+      },
+      "FieldMappingUpdate": {
+        "properties": {
+          "field_mappings": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Field Mappings",
+            "type": "object"
+          }
+        },
+        "required": [
+          "field_mappings"
+        ],
+        "title": "FieldMappingUpdate",
         "type": "object"
       },
       "FiscalYearStartPayload": {
@@ -4720,6 +4795,18 @@
             ],
             "title": "Error Message"
           },
+          "field_mappings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Mappings"
+          },
           "file_hash": {
             "title": "File Hash",
             "type": "string"
@@ -4819,6 +4906,7 @@
           "snapshot_version",
           "stats",
           "metamodel_diff",
+          "field_mappings",
           "error_message",
           "parsed_at",
           "applied_at",
@@ -10070,6 +10158,73 @@
         "title": "SoAWUpdate",
         "type": "object"
       },
+      "SourceFieldRow": {
+        "description": "One source-platform custom field discovered in the snapshot.",
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "mapped_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapped To"
+          },
+          "native_data_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Native Data Type"
+          },
+          "source_field_key": {
+            "title": "Source Field Key",
+            "type": "string"
+          },
+          "target_tea_type": {
+            "title": "Target Tea Type",
+            "type": "string"
+          },
+          "tea_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tea Type"
+          }
+        },
+        "required": [
+          "source_field_key",
+          "label",
+          "native_data_type",
+          "tea_type",
+          "target_tea_type",
+          "mapped_to"
+        ],
+        "title": "SourceFieldRow",
+        "type": "object"
+      },
       "SourceOut": {
         "properties": {
           "accepted_extensions": {
@@ -10853,6 +11008,41 @@
           }
         },
         "title": "TagUpdate",
+        "type": "object"
+      },
+      "TargetFieldOption": {
+        "description": "One Turbo EA field that an admin can map a source field onto.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type"
+        ],
+        "title": "TargetFieldOption",
         "type": "object"
       },
       "TestRequest": {
@@ -12190,6 +12380,17 @@
               }
             ],
             "title": "Diff"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           },
           "entity_kind": {
             "title": "Entity Kind",
@@ -20912,6 +21113,102 @@
         ]
       }
     },
+    "/api/v1/migration/{migration_id}/field-mappings": {
+      "get": {
+        "description": "Return source fields per type alongside the candidate TEA targets.\n\nDrives the **Map fields** section of the migration detail dialog.\nAvailable once the migration is in ``parsed`` / ``previewed`` /\n``applied`` / ``failed`` state \u2014 earlier states have no parsed\nfields yet.",
+        "operationId": "get_field_mappings_api_v1_migration__migration_id__field_mappings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "migration_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Migration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldMappingOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Field Mappings",
+        "tags": [
+          "Migration"
+        ]
+      },
+      "put": {
+        "description": "Persist the admin's mapping choices.\n\nThe payload is a nested dict\n``{<source_native_type>: {<source_field_key>: <tea_field_key>}}``.\nEmpty string values clear a mapping; the literal ``\"__skip__\"``\nmeans \"do not import this field at all\".",
+        "operationId": "update_field_mappings_api_v1_migration__migration_id__field_mappings_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "migration_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Migration Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FieldMappingUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Field Mappings",
+        "tags": [
+          "Migration"
+        ]
+      }
+    },
     "/api/v1/migration/{migration_id}/preview": {
       "get": {
         "operationId": "preview_migration_api_v1_migration__migration_id__preview_get",
@@ -20988,8 +21285,8 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "default": 50,
-              "maximum": 500,
+              "default": 100,
+              "maximum": 10000,
               "minimum": 1,
               "title": "Limit",
               "type": "integer"

@@ -348,6 +348,59 @@ def test_subscriptions_split_per_role_and_dedupe_bare_aggregates() -> None:
     }
 
 
+def test_subscriptions_accept_semicolon_separators() -> None:
+    """LeanIX "Full Snapshot" exports delimit emails with ``;``.
+
+    Regression for the bug where ``a@x.com;b@x.com`` landed as one
+    bogus user. The parser must split on either delimiter.
+    """
+    wb = Workbook()
+    _write_sheet(
+        wb,
+        "Application",
+        [
+            [
+                "id",
+                "type",
+                "name",
+                "displayName",
+                "status",
+                "subscriptions:RESPONSIBLE:Application Owner",
+                "subscriptions:OBSERVER",
+            ],
+            [
+                "ID",
+                "Type",
+                "Name",
+                "Display Name",
+                "Status",
+                "Subscriptions",
+                "Subscriptions Observers",
+            ],
+            [
+                "fs-app-1",
+                "Application",
+                "AppOne",
+                "AppOne",
+                "ACTIVE",
+                "john.doe@example.com;jane.doe@example.com",
+                "watch1@example.com; watch2@example.com",
+            ],
+        ],
+    )
+    snap = parse_xlsx(_to_stream(wb))
+    owner_emails = {
+        s.user_email
+        for s in snap.subscriptions
+        if s.role_type == "RESPONSIBLE" and s.role_name == "Application Owner"
+    }
+    assert owner_emails == {"john.doe@example.com", "jane.doe@example.com"}
+    observer_emails = {s.user_email for s in snap.subscriptions if s.role_type == "OBSERVER"}
+    assert observer_emails == {"watch1@example.com", "watch2@example.com"}
+    # No combined "a;b" pseudo-email leaked into the distinct user list.
+    assert all(";" not in u.email for u in snap.users)
+
+
 def test_child_parent_relation_becomes_parent_id() -> None:
     snap = parse_xlsx(_to_stream(_minimal_workbook()))
     child = next(fs for fs in snap.entities if fs.source_id == "fs-bc-child")
