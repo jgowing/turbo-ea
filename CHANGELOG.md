@@ -5,6 +5,11 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.30.6] - 2026-05-28
+
+### Fixed
+- **Migration importer no longer crashes when a source export contains a relation type whose native name exceeds 100 characters.** `staged_records.card_type_key` was a `VARCHAR(100)` that doubled as the staging slot for both card type keys (short, controlled) and relation type keys (free-form, derived from the source platform). Real exports — LeanIX today, future Ardoq / HOPEX / BiZZdesign just as easily — surface concatenated synthetic relation names like `proposedSolutionToAppApplicationToAppToProposedSolutionApplicationApplicationRel…` that overflowed the column, aborting the whole import with a `StringDataRightTruncationError`. The column is now `TEXT`, mirroring the same fix migration 095 applied to `source_id`. Source-agnostic — benefits every current and future migration adapter.
+
 ## [1.30.5] - 2026-05-28
 
 ### Fixed
