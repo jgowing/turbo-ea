@@ -13,6 +13,7 @@ I todo sono attività assegnate a voi o da voi create. Possono essere collegati 
 Utilizzate le schede di stato per filtrare:
 
 - **Aperti** — Attività ancora in sospeso o in corso
+- **In arrivo** — Occorrenze future pianificate di todo ricorrenti non ancora in scadenza
 - **Completati** — Attività completate
 - **Tutti** — Tutto
 
@@ -38,6 +39,14 @@ Ogni todo traccia:
 | **Assegnatario** | L'utente responsabile |
 | **Data di scadenza** | Scadenza opzionale |
 | **Card** | La card collegata (opzionale) |
+
+### Todo ricorrenti
+
+Quando crei un todo dalla scheda **Todo** di una card, attiva **Ripeti** per renderlo ricorrente — ideale per attività regolari come «far revisionare questa card ogni 6 mesi». Scegli ogni quanto si ripete (ogni *N* giorni, settimane, mesi o anni).
+
+- **Avanzamento automatico** — Quando contrassegni un todo ricorrente come completato, la prossima occorrenza viene creata automaticamente con la data di scadenza spostata in base alla cadenza (corretta sul calendario, così una revisione di fine mese resta a fine mese).
+- **Tempo di anticipo** — Un'occorrenza lontana resta **Pianificata** (nascosta dall'elenco aperto, senza notifica) finché non si apre la sua finestra di anticipo; poi diventa un normale todo aperto e notifica il responsabile. Il tempo di anticipo ha valori predefiniti sensati per cadenza ed è regolabile.
+- **Attiva in anticipo** — Clicca sull'icona dell'evento imminente di un todo pianificato per attivarlo subito se vuoi fare la revisione in anticipo.
 
 ## I miei sondaggi
 

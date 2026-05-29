@@ -13,6 +13,7 @@ Todos are tasks assigned to you or created by you. They can be linked to specifi
 Use the status tabs to filter:
 
 - **Open** — Tasks still pending or in progress
+- **Upcoming** — Scheduled future occurrences of recurring todos that aren't due yet
 - **Done** — Completed tasks
 - **All** — Everything
 
@@ -38,6 +39,14 @@ Each todo tracks:
 | **Assignee** | The user responsible |
 | **Due date** | Optional deadline |
 | **Card** | The linked card (optional) |
+
+### Recurring todos
+
+When creating a todo from a card's **Todos** tab, switch on **Repeats** to turn it into a recurring todo — perfect for regular activities like "have this card reviewed every 6 months". Choose how often it repeats (every *N* days, weeks, months, or years).
+
+- **Automatic roll-forward** — When you mark a recurring todo done, the next occurrence is created automatically with its due date shifted by the cadence (calendar-correct, so a month-end review stays at month-end).
+- **Lead time** — A far-future occurrence stays **Scheduled** (hidden from your open list, with no notification) until its lead-time window opens, then it becomes a normal open todo and notifies the assignee. The lead time defaults sensibly per cadence and can be adjusted.
+- **Activate early** — Click the upcoming-event icon on a scheduled todo to activate it immediately if you want to do the review ahead of schedule.
 
 ## My Surveys
 

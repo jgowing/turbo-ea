@@ -13,6 +13,7 @@ Aufgaben sind Ihnen zugewiesene oder von Ihnen erstellte Tasks. Sie können mit 
 Verwenden Sie die Status-Tabs zum Filtern:
 
 - **Offen** — Noch ausstehende oder in Bearbeitung befindliche Aufgaben
+- **Anstehend** — Geplante künftige Vorkommen wiederkehrender Todos, die noch nicht fällig sind
 - **Erledigt** — Abgeschlossene Aufgaben
 - **Alle** — Alles
 
@@ -38,6 +39,14 @@ Jede Aufgabe erfasst:
 | **Beauftragter** | Der verantwortliche Benutzer |
 | **Fälligkeitsdatum** | Optionale Frist |
 | **Karte** | Die verknüpfte Karte (optional) |
+
+### Wiederkehrende Todos
+
+Beim Erstellen eines Todos auf dem **Todos**-Tab einer Karte können Sie **Wiederholen** aktivieren, um ein wiederkehrendes Todo zu erstellen — ideal für regelmäßige Tätigkeiten wie «diese Karte alle 6 Monate überprüfen lassen». Legen Sie fest, wie oft es sich wiederholt (alle *N* Tage, Wochen, Monate oder Jahre).
+
+- **Automatische Fortschreibung** — Wenn Sie ein wiederkehrendes Todo als erledigt markieren, wird das nächste Vorkommen automatisch mit einem um das Intervall verschobenen Fälligkeitsdatum erstellt (kalendergenau, sodass eine Monatsend-Überprüfung am Monatsende bleibt).
+- **Vorlaufzeit** — Ein weit in der Zukunft liegendes Vorkommen bleibt **Geplant** (aus Ihrer offenen Liste ausgeblendet, ohne Benachrichtigung), bis sich sein Vorlaufzeitfenster öffnet; dann wird es zu einem normalen offenen Todo und benachrichtigt den Zuständigen. Die Vorlaufzeit hat sinnvolle Standardwerte je Intervall und kann angepasst werden.
+- **Früher aktivieren** — Klicken Sie auf das Symbol für anstehende Termine bei einem geplanten Todo, um es sofort zu aktivieren, wenn Sie die Überprüfung vorziehen möchten.
 
 ## Meine Umfragen
 

@@ -13,6 +13,7 @@ Tarefas são itens atribuídos a você ou criados por você. Elas podem estar vi
 Use as abas de status para filtrar:
 
 - **Abertas** — Tarefas ainda pendentes ou em andamento
+- **Em breve** — Ocorrências futuras agendadas de tarefas recorrentes ainda não vencidas
 - **Concluídas** — Tarefas completadas
 - **Todas** — Tudo
 
@@ -38,6 +39,14 @@ Cada tarefa rastreia:
 | **Responsável** | O usuário responsável |
 | **Data de vencimento** | Prazo opcional |
 | **Card** | O card vinculado (opcional) |
+
+### Tarefas recorrentes
+
+Ao criar uma tarefa na aba **Todos** de um card, ative **Repetir** para torná-la recorrente — ideal para atividades regulares como «revisar este card a cada 6 meses». Escolha com que frequência ela se repete (a cada *N* dias, semanas, meses ou anos).
+
+- **Avanço automático** — Quando você marca uma tarefa recorrente como concluída, a próxima ocorrência é criada automaticamente com a data de vencimento deslocada conforme a cadência (correta no calendário, de modo que uma revisão de fim de mês permanece no fim do mês).
+- **Tempo de antecedência** — Uma ocorrência distante permanece **Agendada** (oculta da sua lista de abertas, sem notificação) até que sua janela de antecedência se abra; então torna-se uma tarefa aberta normal e notifica o responsável. O tempo de antecedência tem padrões sensatos por cadência e pode ser ajustado.
+- **Ativar antecipadamente** — Clique no ícone de evento futuro de uma tarefa agendada para ativá-la imediatamente se quiser fazer a revisão antes do prazo.
 
 ## Minhas Pesquisas
 

@@ -13,6 +13,7 @@ Les tâches sont des éléments qui vous sont assignés ou que vous avez créés
 Utilisez les onglets de statut pour filtrer :
 
 - **Ouvert** -- Tâches encore en attente ou en cours
+- **À venir** -- Occurrences futures planifiées de tâches récurrentes pas encore dues
 - **Terminé** -- Tâches terminées
 - **Tout** -- Tout afficher
 
@@ -38,6 +39,14 @@ Chaque tâche suit :
 | **Responsable** | L'utilisateur responsable |
 | **Date d'échéance** | Délai optionnel |
 | **Fiche** | La fiche liée (optionnel) |
+
+### Tâches récurrentes
+
+Lors de la création d'une tâche depuis l'onglet **Tâches** d'une fiche, activez **Répéter** pour en faire une tâche récurrente — idéal pour les activités régulières comme « faire réviser cette fiche tous les 6 mois ». Choisissez la fréquence de répétition (tous les *N* jours, semaines, mois ou années).
+
+- **Report automatique** — Lorsque vous marquez une tâche récurrente comme terminée, la prochaine occurrence est créée automatiquement avec une date d'échéance décalée selon la cadence (calendaire, de sorte qu'une révision de fin de mois reste en fin de mois).
+- **Délai d'anticipation** — Une occurrence lointaine reste **Planifiée** (masquée de votre liste ouverte, sans notification) jusqu'à l'ouverture de sa fenêtre d'anticipation ; elle devient alors une tâche ouverte normale et notifie le responsable. Le délai a des valeurs par défaut pertinentes selon la cadence et peut être ajusté.
+- **Activer en avance** — Cliquez sur l'icône d'événement à venir d'une tâche planifiée pour l'activer immédiatement si vous souhaitez effectuer la révision en avance.
 
 ## Mes enquêtes
 
