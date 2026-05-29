@@ -13,6 +13,7 @@ Aufgaben sind Ihnen zugewiesene oder von Ihnen erstellte Tasks. Sie können mit 
 Verwenden Sie die Status-Tabs zum Filtern:
 
 - **Offen** — Noch ausstehende oder in Bearbeitung befindliche Aufgaben
+- **Anstehend** — Geplante künftige Vorkommen wiederkehrender Todos, die noch nicht fällig sind
 - **Erledigt** — Abgeschlossene Aufgaben
 - **Alle** — Alles
 

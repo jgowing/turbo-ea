@@ -13,6 +13,7 @@ I todo sono attività assegnate a voi o da voi create. Possono essere collegati 
 Utilizzate le schede di stato per filtrare:
 
 - **Aperti** — Attività ancora in sospeso o in corso
+- **In arrivo** — Occorrenze future pianificate di todo ricorrenti non ancora in scadenza
 - **Completati** — Attività completate
 - **Tutti** — Tutto
 

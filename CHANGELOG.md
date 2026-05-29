@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.34.0] - 2026-05-29
 
 ### Added
-- **Recurring todos on cards.** When adding a todo to a card you can now switch on "Repeats" and choose a cadence (every N days / weeks / months / years) — ideal for regular activities like "have this card reviewed every 6 months". Completing a recurring todo automatically spawns the next occurrence on the calendar-correct due date. Far-future occurrences stay quietly "scheduled" (hidden from your open list, no notification) until a configurable lead-time window opens, then surface as a normal todo; you can also activate one early. Reuses the recurrence engine built for risk mitigation tasks. Fulfills [#588](https://github.com/vincentmakes/turbo-ea/discussions/588).
+- **Recurring todos on cards.** When adding a todo to a card you can now switch on "Repeats" and choose a cadence (every N days / weeks / months / years) — ideal for regular activities like "have this card reviewed every 6 months". Completing a recurring todo automatically spawns the next occurrence on the calendar-correct due date. Far-future occurrences stay quietly "scheduled" (hidden from your open list and the nav badge, no notification) until a configurable lead-time window opens, then surface as a normal todo; you can also activate one early. The Tasks page gains an **Upcoming** filter so you can always see your scheduled recurring pipeline. Reuses the recurrence engine built for risk mitigation tasks. Fulfills [#588](https://github.com/vincentmakes/turbo-ea/discussions/588).
 
 ## [1.33.0] - 2026-05-28
 

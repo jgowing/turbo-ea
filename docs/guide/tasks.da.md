@@ -13,6 +13,7 @@ Opgaver er arbejdsemner tildelt dig eller oprettet af dig. De kan være knyttet 
 Brug statusfanerne til at filtrere:
 
 - **Åbne** — Opgaver, der stadig er afventende eller i gang
+- **Kommende** — Planlagte fremtidige forekomster af tilbagevendende opgaver, der endnu ikke er forfaldne
 - **Færdige** — Fuldførte opgaver
 - **Alle** — Alt
 

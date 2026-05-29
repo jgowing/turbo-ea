@@ -13,6 +13,7 @@ Todos are tasks assigned to you or created by you. They can be linked to specifi
 Use the status tabs to filter:
 
 - **Open** — Tasks still pending or in progress
+- **Upcoming** — Scheduled future occurrences of recurring todos that aren't due yet
 - **Done** — Completed tasks
 - **All** — Everything
 

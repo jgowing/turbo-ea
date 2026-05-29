@@ -13,6 +13,7 @@ Tarefas são itens atribuídos a você ou criados por você. Elas podem estar vi
 Use as abas de status para filtrar:
 
 - **Abertas** — Tarefas ainda pendentes ou em andamento
+- **Em breve** — Ocorrências futuras agendadas de tarefas recorrentes ainda não vencidas
 - **Concluídas** — Tarefas completadas
 - **Todas** — Tudo
 

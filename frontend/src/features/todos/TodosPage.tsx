@@ -44,7 +44,7 @@ function isOverdue(todo: Todo): boolean {
 
 /* ── Todos sub-panel ─────────────────────────────────────────────────── */
 
-type StatusFilter = "open" | "done" | "all";
+type StatusFilter = "open" | "upcoming" | "done" | "all";
 
 function TodosPanel() {
   const { t } = useTranslation(["common", "cards"]);
@@ -62,7 +62,11 @@ function TodosPanel() {
 
   useEffect(() => {
     const scope = tab === 0 ? "assigned_only=true" : "created_only=true";
-    const statusParam = currentStatus !== "all" ? `&status=${currentStatus}` : "";
+    // "upcoming" maps to the dormant scheduled state; "all" omits the filter.
+    const statusParam =
+      currentStatus === "all"
+        ? ""
+        : `&status=${currentStatus === "upcoming" ? "scheduled" : currentStatus}`;
     api.get<Todo[]>(`/todos?${scope}${statusParam}`).then(setTodos);
   }, [tab, currentStatus]);
 
@@ -109,6 +113,7 @@ function TodosPanel() {
           onChange={(_, v: StatusFilter | null) => v && setCurrentStatus(v)}
         >
           <ToggleButton value="open">{t("todos.tabs.open")}</ToggleButton>
+          <ToggleButton value="upcoming">{t("todos.tabs.upcoming")}</ToggleButton>
           <ToggleButton value="done">{t("todos.tabs.done")}</ToggleButton>
           <ToggleButton value="all">{t("todos.tabs.all")}</ToggleButton>
         </ToggleButtonGroup>

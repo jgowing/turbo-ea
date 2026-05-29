@@ -13,6 +13,7 @@ Les tâches sont des éléments qui vous sont assignés ou que vous avez créés
 Utilisez les onglets de statut pour filtrer :
 
 - **Ouvert** -- Tâches encore en attente ou en cours
+- **À venir** -- Occurrences futures planifiées de tâches récurrentes pas encore dues
 - **Terminé** -- Tâches terminées
 - **Tout** -- Tout afficher
 

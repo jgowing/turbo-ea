@@ -13,6 +13,7 @@ Las tareas son actividades asignadas a usted o creadas por usted. Pueden estar v
 Use las pestañas de estado para filtrar:
 
 - **Abiertas** — Tareas aún pendientes o en progreso
+- **Próximas** — Repeticiones futuras programadas de tareas recurrentes que aún no vencen
 - **Completadas** — Tareas finalizadas
 - **Todas** — Todo
 
