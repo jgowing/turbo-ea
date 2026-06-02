@@ -21,7 +21,13 @@ from app.database import get_db
 from app.models.app_settings import AppSettings
 from app.models.sso_invitation import SsoInvitation
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    ImpersonateRequest,
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 from app.services import email_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -328,23 +334,122 @@ async def login(
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def me(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     from app.models.user import DEFAULT_UI_PREFERENCES
     from app.services.permission_service import PermissionService
 
-    role_data = await PermissionService.load_role(db, user.role)
+    # Detect an active role-impersonation session from the JWT. We could
+    # read the contextvar, but the middleware already set it from the same
+    # token we'd decode here — the explicit decode keeps this endpoint
+    # self-contained and easy to test.
+    impersonated_role_key: str | None = None
+    raw_auth = request.headers.get("Authorization", "")
+    raw_token = (
+        raw_auth[7:] if raw_auth.startswith("Bearer ") else request.cookies.get("access_token", "")
+    )
+    if raw_token:
+        from app.core.security import decode_access_token
+
+        payload = decode_access_token(raw_token)
+        if payload:
+            impersonated_role_key = payload.get("impersonated_role")
+
+    # Effective role drives label / color / permissions so the entire
+    # frontend behaves as that role after the impersonator hits "View as".
+    effective_role_key = impersonated_role_key or user.role
+    role_data = await PermissionService.load_role(db, effective_role_key)
+    impersonated_role_label: str | None = None
+    if impersonated_role_key:
+        impersonated_role_label = role_data["label"] if role_data else impersonated_role_key
+
     return UserResponse(
         id=str(user.id),
         email=user.email,
         display_name=user.display_name,
-        role=user.role,
-        role_label=role_data["label"] if role_data else user.role,
+        role=effective_role_key,
+        role_label=role_data["label"] if role_data else effective_role_key,
         role_color=role_data["color"] if role_data else "#757575",
         is_active=user.is_active,
         locale=user.locale or "en",
         permissions=role_data["permissions"] if role_data else {},
         ui_preferences=user.ui_preferences or DEFAULT_UI_PREFERENCES,
+        impersonated_role=impersonated_role_key,
+        impersonated_role_label=impersonated_role_label,
     )
+
+
+@router.post("/impersonate", response_model=TokenResponse)
+async def impersonate_role(
+    body: ImpersonateRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Start a role-impersonation session.
+
+    Requires ``admin.impersonate``. Issues a fresh JWT carrying an
+    ``impersonated_role`` claim — the rest of the request lifecycle
+    (PermissionService, audit fan-out) honours it. The real ``user.role``
+    column is never modified; impersonation lives entirely in the token.
+    """
+    from app.models.role import Role
+    from app.services.permission_service import PermissionService
+
+    await PermissionService.require_permission(db, user, "admin.impersonate")
+
+    target = body.role.strip()
+    if not target:
+        raise HTTPException(400, "role is required")
+    if target == "admin":
+        # No value to "impersonate admin" — an admin already has the
+        # wildcard. Hard-reject so any future custom role keyed "admin"
+        # doesn't accidentally become an impersonation target either.
+        raise HTTPException(400, "Cannot impersonate the admin role")
+    if target == user.role:
+        raise HTTPException(400, "Already acting as this role")
+
+    role_result = await db.execute(select(Role).where(Role.key == target))
+    role = role_result.scalar_one_or_none()
+    if role is None:
+        raise HTTPException(404, "Role not found")
+    if role.is_archived:
+        raise HTTPException(400, "Role is archived")
+
+    token = create_access_token(user.id, user.role, impersonated_role=target)
+    _set_auth_cookie(response, token, secure=_is_secure_request(request))
+    return TokenResponse(access_token=token)
+
+
+@router.post("/stop-impersonating", response_model=TokenResponse)
+async def stop_impersonating(
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+):
+    """End a role-impersonation session.
+
+    Reads the current JWT; if there's no active impersonation, returns
+    400 to flag the misuse (caller has stale UI state). Issues a fresh
+    JWT without the claim so all subsequent checks revert to the user's
+    real role.
+    """
+    from app.core.security import decode_access_token
+
+    raw_auth = request.headers.get("Authorization", "")
+    raw_token = (
+        raw_auth[7:] if raw_auth.startswith("Bearer ") else request.cookies.get("access_token", "")
+    )
+    payload = decode_access_token(raw_token) if raw_token else None
+    if not payload or not payload.get("impersonated_role"):
+        raise HTTPException(400, "No active impersonation session")
+    token = create_access_token(user.id, user.role)
+    _set_auth_cookie(response, token, secure=_is_secure_request(request))
+    return TokenResponse(access_token=token)
 
 
 # ── H3: Token refresh endpoint ──

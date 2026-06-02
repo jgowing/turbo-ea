@@ -15,6 +15,27 @@ from app.models.role import Role
 from app.models.stakeholder import Stakeholder
 from app.models.stakeholder_role_definition import StakeholderRoleDefinition
 from app.models.user import User
+from app.services.event_bus import request_impersonation
+
+
+def _effective_role(user: User) -> str:
+    """Return the role key to use for app-level permission checks.
+
+    When the request's JWT carries an ``impersonated_role`` claim the
+    middleware in ``app.main`` stashes ``(impersonator_id, role)`` on the
+    ``request_impersonation`` contextvar. We use the impersonated role for
+    app-level lookups but only when the contextvar's impersonator id
+    matches the current user — guards against the (impossible-in-practice)
+    case where contextvars leak across requests. Stakeholder permissions
+    are not affected; they're keyed by ``user.id`` and remain the
+    impersonator's own.
+    """
+    impersonation = request_impersonation.get()
+    if impersonation is not None:
+        impersonator_id, impersonated_role = impersonation
+        if impersonator_id == str(user.id):
+            return impersonated_role
+    return user.role
 
 
 class PermissionService:
@@ -53,8 +74,13 @@ class PermissionService:
 
     @staticmethod
     async def has_app_permission(db: AsyncSession, user: User, permission: str) -> bool:
-        """Check if user's app-level role grants the given permission."""
-        role_key = user.role
+        """Check if user's app-level role grants the given permission.
+
+        Uses ``_effective_role(user)`` so an active role-impersonation
+        session is honoured — an admin impersonating "member" gets the
+        member role's permission set here, not the admin wildcard.
+        """
+        role_key = _effective_role(user)
         role_data = await PermissionService.load_role(db, role_key)
         if not role_data:
             return False
@@ -182,8 +208,9 @@ class PermissionService:
 
         Returns a dict with app_level, stakeholder_roles, card_level, and effective keys.
         """
-        # Get user's app-level permissions
-        role_data = await PermissionService.load_role(db, user.role)
+        # Get user's app-level permissions (honours an active role-
+        # impersonation session — see ``_effective_role`` doc).
+        role_data = await PermissionService.load_role(db, _effective_role(user))
         app_perms = role_data.get("permissions", {}) if role_data else {}
 
         # Get card type

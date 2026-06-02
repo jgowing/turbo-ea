@@ -148,6 +148,9 @@ export const auth = {
     permissions?: Record<string, boolean>;
   }>("/auth/me"),
   refresh: () => api.post<{ access_token: string }>("/auth/refresh"),
+  impersonate: (role: string) =>
+    api.post<{ access_token: string }>("/auth/impersonate", { role }),
+  stopImpersonating: () => api.post<{ access_token: string }>("/auth/stop-impersonating"),
   logout: () => api.post<{ ok: boolean }>("/auth/logout"),
   ssoConfig: () =>
     api.get<{

@@ -49,5 +49,8 @@
   "userMenu.principlesCatalogue": "Catalogue de principes",
   "userMenu.referenceCatalogues": "Catalogues de référence",
   "userMenu.processCatalogue": "Catalogue de processus",
-  "userMenu.valueStreamCatalogue": "Catalogue de chaînes de valeur"
+  "userMenu.valueStreamCatalogue": "Catalogue de chaînes de valeur",
+  "userMenu.viewAsRole": "Voir en tant que rôle…",
+  "impersonation.banner": "Affichage en tant que {{role}}",
+  "impersonation.stop": "Arrêter"
 }

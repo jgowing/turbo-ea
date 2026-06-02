@@ -1435,5 +1435,9 @@
   "migration.detail.applyResult": "Apply result",
   "migration.detail.downloadErrors": "Download error report",
   "migration.detail.noStaged": "No items staged for this kind.",
-  "migration.detail.stats": "Stats"
+  "migration.detail.stats": "Stats",
+  "impersonation.dialog.title": "View the app as a different role",
+  "impersonation.dialog.body": "Pick a role to step into. Your real account is unchanged — every action you take during the session is audit-stamped with your real user id. Stop at any time from the banner at the top of the page.",
+  "impersonation.dialog.roleLabel": "Role",
+  "impersonation.dialog.confirm": "Start viewing"
 }

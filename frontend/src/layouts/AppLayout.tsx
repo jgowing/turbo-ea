@@ -22,7 +22,9 @@ import { useTranslation } from "react-i18next";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import NotificationBell from "@/components/NotificationBell";
 import NotificationPreferencesDialog from "@/components/NotificationPreferencesDialog";
-import { api } from "@/api/client";
+import { api, auth, setToken } from "@/api/client";
+import { useAuthContext } from "@/hooks/AuthContext";
+import ImpersonateRoleDialog from "@/features/admin/ImpersonateRoleDialog";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useBpmEnabled } from "@/hooks/useBpmEnabled";
 import { useGrcEnabled } from "@/hooks/useGrcEnabled";
@@ -95,7 +97,7 @@ interface PermissionMap {
 
 interface Props {
   children: ReactNode;
-  user: { id: string; display_name: string; email: string; role: string; permissions?: PermissionMap };
+  user: { id: string; display_name: string; email: string; role: string; permissions?: PermissionMap; impersonated_role?: string | null; impersonated_role_label?: string | null };
   onLogout: () => void;
 }
 
@@ -194,6 +196,22 @@ export default function AppLayout({ children, user, onLogout }: Props) {
   const [userMenu, setUserMenu] = useState<HTMLElement | null>(null);
   const [reportsMenu, setReportsMenu] = useState<HTMLElement | null>(null);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
+  const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
+  const [stopImpersonatingBusy, setStopImpersonatingBusy] = useState(false);
+  const { refreshUser } = useAuthContext();
+  const handleStopImpersonating = useCallback(async () => {
+    if (stopImpersonatingBusy) return;
+    setStopImpersonatingBusy(true);
+    try {
+      const { access_token } = await auth.stopImpersonating();
+      setToken(access_token);
+      await refreshUser();
+    } catch {
+      // Best-effort — refreshUser will surface the real state on next poll.
+    } finally {
+      setStopImpersonatingBusy(false);
+    }
+  }, [refreshUser, stopImpersonatingBusy]);
   // Inline Create dialog mounted in the layout so the Create button works
   // from any route without navigating to /inventory first.
   const [createOpen, setCreateOpen] = useState(false);
@@ -853,6 +871,20 @@ export default function AppLayout({ children, user, onLogout }: Props) {
                 <ListItemText>{item.label}</ListItemText>
               </MenuItem>
             ))}
+            {can("admin.impersonate") && !user.impersonated_role && <Divider />}
+            {can("admin.impersonate") && !user.impersonated_role && (
+              <MenuItem
+                onClick={() => {
+                  setUserMenu(null);
+                  setImpersonateDialogOpen(true);
+                }}
+              >
+                <ListItemIcon>
+                  <MaterialSymbol icon="switch_account" size={18} />
+                </ListItemIcon>
+                <ListItemText>{t("userMenu.viewAsRole")}</ListItemText>
+              </MenuItem>
+            )}
             <Divider />
             <MenuItem
               onClick={() => {
@@ -912,6 +944,14 @@ export default function AppLayout({ children, user, onLogout }: Props) {
       {/* Mobile drawer */}
       {isMobile && renderDrawer()}
 
+      {/* Role-impersonation picker (mounted globally so the user-menu
+          entry can open it from any route). */}
+      <ImpersonateRoleDialog
+        open={impersonateDialogOpen}
+        onClose={() => setImpersonateDialogOpen(false)}
+        onSuccess={refreshUser}
+      />
+
       {/* Main content */}
       <Box
         component="main"
@@ -923,6 +963,49 @@ export default function AppLayout({ children, user, onLogout }: Props) {
           pt: "64px",
         }}
       >
+        {user.impersonated_role && (
+          <Box
+            sx={{
+              position: "sticky",
+              top: 64,
+              zIndex: 1099,
+              bgcolor: "#ffb300",
+              color: "#1a1a2e",
+              px: 2,
+              py: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              borderBottom: "1px solid rgba(0,0,0,0.12)",
+              boxShadow: 1,
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <MaterialSymbol icon="visibility" size={20} />
+            <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 600 }}>
+              {t("impersonation.banner", {
+                role: user.impersonated_role_label || user.impersonated_role,
+              })}
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              onClick={handleStopImpersonating}
+              disabled={stopImpersonatingBusy}
+              sx={{
+                bgcolor: "#1a1a2e",
+                color: "#fff",
+                "&:hover": { bgcolor: "#000018" },
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              {t("impersonation.stop")}
+            </Button>
+          </Box>
+        )}
         <Box sx={{ p: { xs: 1.5, sm: 3 } }}>{children}</Box>
       </Box>
     </Box>

@@ -45,5 +45,16 @@ class UserResponse(BaseModel):
     locale: str = "en"
     permissions: dict[str, bool] | None = None
     ui_preferences: dict | None = None
+    # Set when the JWT carries an ``impersonated_role`` claim — the
+    # frontend uses this to render the persistent "viewing as X" banner.
+    # The ``role`` / ``role_label`` / ``role_color`` / ``permissions``
+    # fields above already reflect the impersonated role so the rest of
+    # the UI behaves identically to a fresh login as that role.
+    impersonated_role: str | None = None
+    impersonated_role_label: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ImpersonateRequest(BaseModel):
+    role: str = Field(..., min_length=1, max_length=64)

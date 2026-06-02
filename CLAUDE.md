@@ -1314,6 +1314,16 @@ has_access = await PermissionService.check_permission(db, user, "bpm.edit")
 | Member | `member` | No | Full inventory + BPM edit (no approve), no admin.* |
 | Viewer | `viewer` | No | View-only across all domains, can respond to surveys |
 
+### Role Impersonation
+
+The **View as role…** entry in the user menu (gated on `admin.impersonate`) lets an admin temporarily act as another role to verify what non-admin users see. The model is intentionally simple and server-enforced:
+
+- **JWT-claim only.** `POST /auth/impersonate {role}` issues a fresh JWT carrying an `impersonated_role` claim; `POST /auth/stop-impersonating` issues one without it. The `users.role` column is never modified — impersonation is transient session state.
+- **Effective role lives in a contextvar.** A middleware in `app/main.py` decodes the JWT once per request and stashes `(impersonator_user_id, impersonated_role)` on `request_impersonation` (defined in `app/services/event_bus.py` alongside `request_origin` / `request_batch_id`). `PermissionService._effective_role(user)` reads it and returns the impersonated role for app-level permission checks. **Stakeholder permissions are not stripped** — they're per-card grants tied to `user.id`, so the impersonating admin keeps their own stakeholder access (an admin impersonating "member" still sees what *they personally* would see as a member, not some platonic member ideal).
+- **Sensitive endpoints stay strict.** No "real-admin escape hatch" — while impersonating, `admin.users` / `admin.settings` / etc. all evaluate against the impersonated role's permission set, so the impersonating admin loses those powers until they stop. The whole point of the feature is verification; admin work requires stopping the session first.
+- **Admin can't be impersonated.** `POST /auth/impersonate` hard-rejects `role: "admin"` so a custom support role with `admin.impersonate` can't step up to the wildcard.
+- **Audit fan-out.** `event_bus.publish()` stamps `impersonator_user_id` and `impersonated_role` onto every event emitted while impersonation is active. Reviewers can later answer "who, really, performed this action?" from the event payload alone.
+
 ---
 
 ## Calculations (Computed Fields)

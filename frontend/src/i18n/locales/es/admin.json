@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "ID de origen",
   "migration.upload.source": "Plataforma de origen",
   "migration.upload.help": "Elija la plataforma de origen y suelte la exportación de la instantánea. El archivo permanece en el disco y se elimina al borrar la migración.",
-  "migration.upload.includeArchived": "Importar también las entidades archivadas (desactivado por defecto)"
+  "migration.upload.includeArchived": "Importar también las entidades archivadas (desactivado por defecto)",
+  "impersonation.dialog.title": "Ver la aplicación como otro rol",
+  "impersonation.dialog.body": "Elija un rol al que adoptar. Su cuenta real no se modifica — cada acción que realice durante la sesión se registra en la auditoría con su identificador de usuario real. Puede detenerla en cualquier momento desde la barra superior de la página.",
+  "impersonation.dialog.roleLabel": "Rol",
+  "impersonation.dialog.confirm": "Iniciar visualización"
 }

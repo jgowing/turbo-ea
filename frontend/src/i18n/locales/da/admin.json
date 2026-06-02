@@ -1435,5 +1435,9 @@
   "migration.detail.applyResult": "Resultat",
   "migration.detail.downloadErrors": "Download fejlrapport",
   "migration.detail.noStaged": "Ingen elementer staged for denne type.",
-  "migration.detail.stats": "Statistik"
+  "migration.detail.stats": "Statistik",
+  "impersonation.dialog.title": "Vis appen som en anden rolle",
+  "impersonation.dialog.body": "Vælg en rolle, du vil træde ind i. Din rigtige konto er uændret — alle handlinger under sessionen logges med dit rigtige bruger-id. Stop når som helst fra banneret øverst på siden.",
+  "impersonation.dialog.roleLabel": "Rolle",
+  "impersonation.dialog.confirm": "Start visning"
 }

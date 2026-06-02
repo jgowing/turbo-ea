@@ -5,7 +5,10 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.36.1] - 2026-06-02
+## [1.37.0] - 2026-06-02
+
+### Added
+- **Admin role impersonation.** Admins with the new `admin.impersonate` permission can now temporarily view the app as a different role (member, viewer, bpm_admin, or any custom role). Open the **View as role…** entry in the user menu, pick a role, and the entire UI + backend permission surface immediately behaves as if you had that role — no need to spin up a test account. A persistent yellow banner at the top of every page shows which role you're acting as and offers a one-click **Stop**. The impersonation lives in the JWT only — your real account is never modified — and every event emitted during the session is audit-stamped with your real user id and the impersonated role key, so reviewers can later answer "who, really, performed this action?".
 
 ### Fixed
 - **Admin menu is now hidden from non-admin users.** Members and viewers were seeing the **Admin** dropdown in the top navigation even though they couldn't actually save changes — the underlying API calls were correctly rejected, but the menu chrome was confusing. The Settings entry was previously visible to anyone holding `eol.manage`, `web_portals.manage`, `servicenow.manage`, or `turbolens.manage`; it now requires `admin.settings` like the other admin entries, so the entire Admin section disappears for users without a genuine `admin.*` permission. Direct `/admin/*` URLs are also gated server-side-style at the route level — typing one into the address bar lands non-permitted users on an **Access denied** page instead of loading the admin screen.

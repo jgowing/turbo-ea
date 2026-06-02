@@ -49,5 +49,8 @@
   "userMenu.principlesCatalogue": "Catalogo dei principi",
   "userMenu.referenceCatalogues": "Cataloghi di riferimento",
   "userMenu.processCatalogue": "Catalogo dei processi",
-  "userMenu.valueStreamCatalogue": "Catalogo dei flussi di valore"
+  "userMenu.valueStreamCatalogue": "Catalogo dei flussi di valore",
+  "userMenu.viewAsRole": "Visualizza come ruolo…",
+  "impersonation.banner": "Visualizzazione come {{role}}",
+  "impersonation.stop": "Interrompi"
 }

@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "来源 ID",
   "migration.upload.source": "来源平台",
   "migration.upload.help": "选择来源平台，然后放入快照导出文件。文件保存在磁盘上，删除迁移时一并清除。",
-  "migration.upload.includeArchived": "同时导入已归档的实体（默认关闭）"
+  "migration.upload.includeArchived": "同时导入已归档的实体（默认关闭）",
+  "impersonation.dialog.title": "以其他角色身份查看应用",
+  "impersonation.dialog.body": "请选择您要切换的角色。您的真实账户保持不变 — 会话期间执行的每个操作都会以您的真实用户 ID 记入审计。您可以随时通过页面顶部的横幅停止。",
+  "impersonation.dialog.roleLabel": "角色",
+  "impersonation.dialog.confirm": "开始查看"
 }

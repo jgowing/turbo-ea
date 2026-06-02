@@ -49,5 +49,8 @@
   "userMenu.principlesCatalogue": "Principkatalog",
   "userMenu.referenceCatalogues": "Referencekataloger",
   "userMenu.processCatalogue": "Proceskatalog",
-  "userMenu.valueStreamCatalogue": "Værdistrømskatalog"
+  "userMenu.valueStreamCatalogue": "Værdistrømskatalog",
+  "userMenu.viewAsRole": "Vis som rolle…",
+  "impersonation.banner": "Vises som {{role}}",
+  "impersonation.stop": "Stop"
 }

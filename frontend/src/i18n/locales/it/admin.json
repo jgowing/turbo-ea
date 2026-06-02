@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "ID sorgente",
   "migration.upload.source": "Piattaforma sorgente",
   "migration.upload.help": "Selezionare la piattaforma sorgente, quindi rilasciare l'export dello snapshot. Il file rimane su disco e viene eliminato alla cancellazione della migrazione.",
-  "migration.upload.includeArchived": "Importa anche le entità archiviate (disattivato per impostazione predefinita)"
+  "migration.upload.includeArchived": "Importa anche le entità archiviate (disattivato per impostazione predefinita)",
+  "impersonation.dialog.title": "Visualizza l'app come un altro ruolo",
+  "impersonation.dialog.body": "Scegli un ruolo in cui calarti. Il tuo account reale non viene modificato — ogni azione eseguita durante la sessione viene tracciata nell'audit con il tuo identificativo utente reale. Puoi interrompere in qualsiasi momento dal banner in alto.",
+  "impersonation.dialog.roleLabel": "Ruolo",
+  "impersonation.dialog.confirm": "Avvia visualizzazione"
 }

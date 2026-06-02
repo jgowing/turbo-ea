@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "ID source",
   "migration.upload.source": "Plateforme source",
   "migration.upload.help": "Choisissez la plateforme source, puis déposez l'export du snapshot. Le fichier reste sur le disque et est purgé lors de la suppression de la migration.",
-  "migration.upload.includeArchived": "Importer aussi les entités archivées (désactivé par défaut)"
+  "migration.upload.includeArchived": "Importer aussi les entités archivées (désactivé par défaut)",
+  "impersonation.dialog.title": "Voir l'application en tant qu'un autre rôle",
+  "impersonation.dialog.body": "Choisissez un rôle dans lequel vous glisser. Votre compte réel reste inchangé — chaque action effectuée pendant la session est consignée dans l'audit avec votre véritable identifiant utilisateur. Vous pouvez arrêter à tout moment depuis la bannière en haut de la page.",
+  "impersonation.dialog.roleLabel": "Rôle",
+  "impersonation.dialog.confirm": "Démarrer l'affichage"
 }

@@ -228,6 +228,12 @@ APP_PERMISSIONS: dict[str, dict] = {
                 "users, relations, tags, stakeholders, and documents in a "
                 "single staged + reviewable operation."
             ),
+            "admin.impersonate": (
+                "Start a role-impersonation session — temporarily view the app "
+                "as another role to verify what non-admin users see. The "
+                "impersonator's real user id is captured on every event "
+                "emitted during the session for audit."
+            ),
         },
     },
 }
@@ -363,6 +369,7 @@ BPM_ADMIN_PERMISSIONS: dict[str, bool] = {
     "admin.mcp": False,
     "admin.events": False,
     "admin.migrate": False,
+    "admin.impersonate": False,
 }
 
 MEMBER_PERMISSIONS: dict[str, bool] = {
@@ -436,6 +443,7 @@ MEMBER_PERMISSIONS: dict[str, bool] = {
     "admin.mcp": False,
     "admin.events": False,
     "admin.migrate": False,
+    "admin.impersonate": False,
 }
 
 VIEWER_PERMISSIONS: dict[str, bool] = {
@@ -509,6 +517,7 @@ VIEWER_PERMISSIONS: dict[str, bool] = {
     "admin.mcp": False,
     "admin.events": False,
     "admin.migrate": False,
+    "admin.impersonate": False,
 }
 
 # ---------------------------------------------------------------------------

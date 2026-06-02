@@ -20,6 +20,8 @@ export interface User {
   last_login?: string;
   permissions?: Record<string, boolean>;
   ui_preferences?: UiPreferences | null;
+  impersonated_role?: string | null;
+  impersonated_role_label?: string | null;
 }
 
 export interface AppRole {

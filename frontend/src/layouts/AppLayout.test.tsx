@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import AppLayout from "./AppLayout";
+import { AuthProvider } from "@/hooks/AuthContext";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -93,9 +94,11 @@ function renderLayout(
 ) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <AppLayout user={user} onLogout={onLogout}>
-        <div data-testid="page-content">Page Content</div>
-      </AppLayout>
+      <AuthProvider user={user} refreshUser={async () => {}}>
+        <AppLayout user={user} onLogout={onLogout}>
+          <div data-testid="page-content">Page Content</div>
+        </AppLayout>
+      </AuthProvider>
     </MemoryRouter>,
   );
 }

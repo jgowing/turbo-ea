@@ -49,5 +49,8 @@
   "userMenu.principlesCatalogue": "Prinzipienkatalog",
   "userMenu.referenceCatalogues": "Referenzkataloge",
   "userMenu.processCatalogue": "Prozesskatalog",
-  "userMenu.valueStreamCatalogue": "Wertstrom-Katalog"
+  "userMenu.valueStreamCatalogue": "Wertstrom-Katalog",
+  "userMenu.viewAsRole": "Als Rolle anzeigen…",
+  "impersonation.banner": "Anzeige als {{role}}",
+  "impersonation.stop": "Beenden"
 }

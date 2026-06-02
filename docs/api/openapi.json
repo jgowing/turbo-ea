@@ -4338,6 +4338,21 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "ImpersonateRequest": {
+        "properties": {
+          "role": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "ImpersonateRequest",
+        "type": "object"
+      },
       "ImportPrinciplesRequest": {
         "properties": {
           "catalogue_ids": {
@@ -12146,6 +12161,28 @@
             "title": "Id",
             "type": "string"
           },
+          "impersonated_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impersonated Role"
+          },
+          "impersonated_role_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Impersonated Role Label"
+          },
           "is_active": {
             "title": "Is Active",
             "type": "boolean"
@@ -13870,6 +13907,48 @@
         ]
       }
     },
+    "/api/v1/auth/impersonate": {
+      "post": {
+        "description": "Start a role-impersonation session.\n\nRequires ``admin.impersonate``. Issues a fresh JWT carrying an\n``impersonated_role`` claim \u2014 the rest of the request lifecycle\n(PermissionService, audit fan-out) honours it. The real ``user.role``\ncolumn is never modified; impersonation lives entirely in the token.",
+        "operationId": "impersonate_role_api_v1_auth_impersonate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImpersonateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Impersonate Role",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "login_api_v1_auth_login_post",
@@ -14154,6 +14233,28 @@
           }
         },
         "summary": "Sso Config Endpoint",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/stop-impersonating": {
+      "post": {
+        "description": "End a role-impersonation session.\n\nReads the current JWT; if there's no active impersonation, returns\n400 to flag the misuse (caller has stale UI state). Issues a fresh\nJWT without the claim so all subsequent checks revert to the user's\nreal role.",
+        "operationId": "stop_impersonating_api_v1_auth_stop_impersonating_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stop Impersonating",
         "tags": [
           "auth"
         ]

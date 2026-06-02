@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "ID de origem",
   "migration.upload.source": "Plataforma de origem",
   "migration.upload.help": "Selecione a plataforma de origem e solte a exportação do snapshot. O arquivo permanece em disco e é removido ao excluir a migração.",
-  "migration.upload.includeArchived": "Importar também entidades arquivadas (desativado por padrão)"
+  "migration.upload.includeArchived": "Importar também entidades arquivadas (desativado por padrão)",
+  "impersonation.dialog.title": "Ver o aplicativo como outra função",
+  "impersonation.dialog.body": "Escolha uma função para assumir. Sua conta real não é modificada — cada ação executada durante a sessão é registrada na auditoria com seu identificador de usuário real. Pode parar a qualquer momento pela barra no topo da página.",
+  "impersonation.dialog.roleLabel": "Função",
+  "impersonation.dialog.confirm": "Iniciar visualização"
 }

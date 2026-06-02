@@ -33,6 +33,19 @@ request_batch_id: ContextVar[uuid.UUID | None] = ContextVar("request_batch_id", 
 # the audit log's Tool column.
 request_endpoint: ContextVar[str | None] = ContextVar("request_endpoint", default=None)
 
+# Set by ``capture_request_origin`` in ``app.main`` when the request's JWT
+# carries an ``impersonated_role`` claim — i.e. an admin has activated a
+# "View as role" session from the user menu. Tuple is
+# (impersonator_user_id, impersonated_role_key). ``publish()`` stamps both
+# onto every event's data payload so an auditor can later reconstruct
+# "who, real-identity-wise, performed this action while pretending to be
+# what role". Permission checks read this via
+# ``PermissionService._effective_role(user)`` to evaluate the impersonated
+# role instead of the user's real role.
+request_impersonation: ContextVar[tuple[str, str] | None] = ContextVar(
+    "request_impersonation", default=None
+)
+
 # Event types whose ``publish()`` calls should NOT lazy-create an
 # auto-batch. Notifications fire once per recipient per relevant write —
 # the underlying card / relation / ADR / risk write that triggered them is
@@ -70,6 +83,14 @@ class EventBus:
             # /events endpoint, the per-card history timeline, the SSE
             # stream) all see the origin without a schema change.
             data = {**data, "origin": origin}
+        impersonation = request_impersonation.get()
+        if impersonation and "impersonator_user_id" not in data:
+            impersonator_id, impersonated_role = impersonation
+            data = {
+                **data,
+                "impersonator_user_id": impersonator_id,
+                "impersonated_role": impersonated_role,
+            }
         effective_batch_id = batch_id if batch_id is not None else request_batch_id.get()
 
         # Lazy auto-batch creation: web-UI and direct-API writes do not

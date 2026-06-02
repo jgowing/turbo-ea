@@ -49,5 +49,8 @@
   "userMenu.principlesCatalogue": "Principles Catalogue",
   "userMenu.referenceCatalogues": "Reference Catalogues",
   "userMenu.processCatalogue": "Process Catalogue",
-  "userMenu.valueStreamCatalogue": "Value Stream Catalogue"
+  "userMenu.valueStreamCatalogue": "Value Stream Catalogue",
+  "userMenu.viewAsRole": "View as role…",
+  "impersonation.banner": "Viewing as {{role}}",
+  "impersonation.stop": "Stop"
 }

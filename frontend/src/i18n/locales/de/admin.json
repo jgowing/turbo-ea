@@ -1435,5 +1435,9 @@
   "migration.col.sourceId": "Quell-ID",
   "migration.upload.source": "Quellplattform",
   "migration.upload.help": "Wählen Sie die Quellplattform und legen Sie dann den Snapshot-Export ab. Die Datei bleibt auf der Festplatte und wird beim Löschen der Migration entfernt.",
-  "migration.upload.includeArchived": "Auch archivierte Entitäten importieren (standardmäßig deaktiviert)"
+  "migration.upload.includeArchived": "Auch archivierte Entitäten importieren (standardmäßig deaktiviert)",
+  "impersonation.dialog.title": "Die App als andere Rolle anzeigen",
+  "impersonation.dialog.body": "Wählen Sie eine Rolle, in deren Sicht Sie wechseln möchten. Ihr eigentliches Konto bleibt unverändert — jede Aktion während der Sitzung wird mit Ihrer tatsächlichen Benutzer-ID protokolliert. Sie können jederzeit über das Banner oben auf der Seite beenden.",
+  "impersonation.dialog.roleLabel": "Rolle",
+  "impersonation.dialog.confirm": "Anzeige starten"
 }
