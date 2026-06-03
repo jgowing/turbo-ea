@@ -63,7 +63,7 @@ Det særlige sektionsnavn `__description` tilføjer felter til Beskrivelsessekti
 
 #### Datakvalitetsscore
 
-Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fire indbyggede faktorer – håndteres ét sted: panelet **Datakvalitet** i korttypeeditoren.
+Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fire indbyggede faktorer – håndteres ét sted: fanen **Datakvalitet** i korttypeeditoren, der åbnes med kvalitetsikonet øverst (ved siden af oversættelsesikonet).
 
 Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også viser det underliggende tal:
 
@@ -74,7 +74,7 @@ Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også
 
 Panelet viser de fire **indbyggede faktorer** – **Beskrivelse**, **Livscyklus** (om der er angivet en livscyklusdato), **obligatoriske relationer** og **obligatoriske tags** – efterfulgt af hvert felt grupperet efter sin sektion, hver med den samme skyder. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
 
-En **scorens sammensætning**-bjælke øverst i panelet viser hver faktors andel af den maksimalt mulige score, så du med et blik kan se, hvilke faktorer der dominerer. I layouteditoren ovenfor viser hvert felt også et lille mærke med sit aktuelle niveaunummer.
+En **scorens sammensætning**-bjælke øverst i panelet viser hver faktors andel af den maksimalt mulige score, så du med et blik kan se, hvilke faktorer der dominerer. I kortlayoutet viser hvert felt også et lille mærke med sit aktuelle niveaunummer.
 
 Ændring af en vigtighed genberegner straks scoren for alle eksisterende kort af den type. Nye felter er som standard *Normal* og tæller derfor med i scoren, så snart du tilføjer dem.
 

@@ -63,7 +63,7 @@ O nome de seção especial `__description` adiciona campos à seção de Descri�
 
 #### Pontuação de qualidade dos dados
 
-A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada fator que contribui — cada campo e quatro fatores integrados — é gerido em um único lugar: o painel **Qualidade dos dados** do editor de tipo de card.
+A pontuação de **qualidade dos dados** de um card mede de forma ponderada o quão completo ele está. Cada fator que contribui — cada campo e quatro fatores integrados — é gerido em um único lugar: a aba **Qualidade dos dados** do editor de tipo de card, aberta com o ícone de qualidade no topo (ao lado do ícone de tradução).
 
 A importância de cada fator é definida com um controle deslizante simples de quatro níveis, que também mostra o número subjacente:
 
@@ -74,7 +74,7 @@ A importância de cada fator é definida com um controle deslizante simples de q
 
 O painel lista os quatro **fatores integrados** — **Descrição**, **Ciclo de vida** (se alguma data de ciclo de vida estiver definida), **Relações obrigatórias** e **Etiquetas obrigatórias** — seguidos de cada campo agrupado pela sua seção, cada um com o mesmo controle deslizante. Por exemplo, defina o **Ciclo de vida** como *Ignorar* para um tipo cujos cards legitimamente nunca têm datas, para que não sejam penalizados.
 
-Uma barra de **composição da pontuação** no topo do painel mostra a parcela de cada fator na pontuação máxima possível, para ver rapidamente quais fatores dominam. No editor de layout acima, cada campo também mostra um pequeno selo com o seu nível atual.
+Uma barra de **composição da pontuação** no topo do painel mostra a parcela de cada fator na pontuação máxima possível, para ver rapidamente quais fatores dominam. No layout do card, cada campo também mostra um pequeno selo com o seu nível atual.
 
 Alterar qualquer importância recalcula imediatamente a pontuação de todos os cards existentes desse tipo. Os campos novos são *Normal* por padrão, portanto contam para a pontuação assim que você os adiciona.
 

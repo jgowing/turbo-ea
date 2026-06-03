@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Box from "@mui/material/Box";
 import Slider from "@mui/material/Slider";
 import Typography from "@mui/material/Typography";
@@ -11,8 +12,9 @@ import { useTranslation } from "react-i18next";
  *   Ignore = 0, Normal = 1, Important = 2, Critical = 3.
  *
  * The underlying value is the numeric field/contributor `weight` (0 excludes).
- * Legacy/out-of-range weights snap to the nearest tier for display without
- * being silently rewritten until the admin moves the slider.
+ * Dragging updates a local value for smooth feedback; the parent `onChange`
+ * (which persists + refreshes) only fires on release, so the screen does not
+ * flicker mid-drag. Legacy/out-of-range weights snap to the nearest tier.
  */
 
 export const TIER_KEYS = ["ignore", "normal", "important", "critical"] as const;
@@ -41,25 +43,27 @@ export function useTierColor(): (tier: Tier) => string {
 interface ImportanceSliderProps {
   value: number | undefined;
   onChange: (weight: number) => void;
-  width?: number;
 }
 
-export default function ImportanceSlider({
-  value,
-  onChange,
-  width = 150,
-}: ImportanceSliderProps) {
+export default function ImportanceSlider({ value, onChange }: ImportanceSliderProps) {
   const { t } = useTranslation("admin");
   const tierColor = useTierColor();
-  const tier = weightToTier(value);
+
+  // Local tier mirrors the prop but updates instantly while dragging.
+  const [tier, setTier] = useState<Tier>(weightToTier(value));
+  useEffect(() => {
+    setTier(weightToTier(value));
+  }, [value]);
+
   const color = tierColor(tier);
   const tierLabel = t(`metamodel.importance.${TIER_KEYS[tier]}`);
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, width: "100%" }}>
       <Slider
         value={tier}
-        onChange={(_, v) => onChange(Number(v))}
+        onChange={(_, v) => setTier(Number(v) as Tier)}
+        onChangeCommitted={(_, v) => onChange(Number(v))}
         min={0}
         max={3}
         step={1}
@@ -67,11 +71,20 @@ export default function ImportanceSlider({
         size="small"
         valueLabelDisplay="off"
         aria-label={t("metamodel.importance.label")}
-        sx={{ width, color, "& .MuiSlider-markActive": { bgcolor: "currentColor" } }}
+        sx={{
+          flex: 1,
+          color,
+          py: 1,
+          "& .MuiSlider-rail": { height: 6, opacity: 0.3 },
+          "& .MuiSlider-track": { height: 6, border: "none" },
+          "& .MuiSlider-thumb": { width: 16, height: 16 },
+          "& .MuiSlider-mark": { height: 6, width: 2, bgcolor: "currentColor", opacity: 0.4 },
+          "& .MuiSlider-markActive": { bgcolor: "currentColor", opacity: 1 },
+        }}
       />
       <Typography
         variant="caption"
-        sx={{ color, fontWeight: 700, minWidth: 96, whiteSpace: "nowrap" }}
+        sx={{ color, fontWeight: 700, width: 92, flexShrink: 0, textAlign: "right", whiteSpace: "nowrap" }}
       >
         {tierLabel} ({tier})
       </Typography>

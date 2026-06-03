@@ -87,6 +87,15 @@ export default function TypeDetailDrawer({
   /* --- Translation dialog --- */
   const [translationDialogOpen, setTranslationDialogOpen] = useState(false);
 
+  /* --- Drawer view (main properties vs. data quality tab) --- */
+  const [view, setView] = useState<"main" | "dataQuality">("main");
+  // Reset to the main view only when switching to a different type — not on the
+  // object-identity churn from onRefresh (which would kick the user out of the
+  // Data Quality tab on every slider change).
+  useEffect(() => {
+    setView("main");
+  }, [typeKey]);
+
   /* --- Field editor --- */
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [editingSectionIdx, setEditingSectionIdx] = useState(0);
@@ -442,6 +451,16 @@ export default function TypeDetailDrawer({
               <MaterialSymbol icon="translate" size={20} />
             </IconButton>
           </Tooltip>
+          <Tooltip title={t("metamodel.dataQuality.title")}>
+            <IconButton
+              size="small"
+              onClick={() => setView((v) => (v === "dataQuality" ? "main" : "dataQuality"))}
+              color={view === "dataQuality" ? "primary" : "default"}
+              sx={view === "dataQuality" ? { bgcolor: "action.selected" } : undefined}
+            >
+              <MaterialSymbol icon="verified" size={20} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title={cardTypeKey.is_hidden ? t("metamodel.typeDrawer.unhideType") : t("metamodel.typeDrawer.hideType")}>
             <IconButton size="small" onClick={handleToggleHidden}>
               <MaterialSymbol
@@ -472,7 +491,9 @@ export default function TypeDetailDrawer({
       )}
 
       {/* ---------- Single scrollable body ---------- */}
-      <Box sx={{ flex: 1, overflow: "auto", px: 4, py: 3 }}>
+      <Box sx={{ flex: 1, overflow: "auto", px: { xs: 2, sm: 4 }, py: 3 }}>
+        {view === "main" && (
+        <>
         {/* -- Type Properties -- */}
         <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
           {t("metamodel.typeDrawer.typeProperties")}
@@ -700,13 +721,12 @@ export default function TypeDetailDrawer({
             calculatedFieldKeys={calculatedFieldKeys}
           />
         )}
+        </>
+        )}
 
-        {/* -- Data Quality -- */}
-        {cardTypeKey && (
-          <>
-            <Divider sx={{ my: 3 }} />
-            <DataQualityPanel cardType={cardTypeKey} onRefresh={onRefresh} />
-          </>
+        {/* -- Data Quality tab -- */}
+        {view === "dataQuality" && cardTypeKey && (
+          <DataQualityPanel cardType={cardTypeKey} onRefresh={onRefresh} />
         )}
       </Box>
 

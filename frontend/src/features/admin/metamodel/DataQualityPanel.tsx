@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -26,7 +25,6 @@ export default function DataQualityPanel({ cardType, onRefresh }: DataQualityPan
   const { t } = useTranslation(["admin", "common"]);
   const rl = useResolveLabel();
   const tierColor = useTierColor();
-  const [saving, setSaving] = useState(false);
 
   const secCfg = (cardType.section_config || {}) as Record<string, unknown> & {
     __dataQuality?: DataQualityConfig;
@@ -34,13 +32,8 @@ export default function DataQualityPanel({ cardType, onRefresh }: DataQualityPan
   const dqConfig: DataQualityConfig = secCfg.__dataQuality || {};
 
   const patch = async (body: Record<string, unknown>) => {
-    setSaving(true);
-    try {
-      await api.patch(`/metamodel/types/${cardType.key}`, body);
-      onRefresh();
-    } finally {
-      setSaving(false);
-    }
+    await api.patch(`/metamodel/types/${cardType.key}`, body);
+    onRefresh();
   };
 
   const setBuiltin = (bucket: string, weight: number) =>
@@ -131,34 +124,20 @@ export default function DataQualityPanel({ cardType, onRefresh }: DataQualityPan
       )}
 
       {/* Built-in factors */}
-      <FactorGroup
-        label={t("metamodel.dataQuality.builtInGroup")}
-        factors={builtInFactors}
-        disabled={saving}
-      />
+      <FactorGroup label={t("metamodel.dataQuality.builtInGroup")} factors={builtInFactors} />
 
       {/* Field factors, grouped by section */}
       {fieldGroups.map(
         (g, i) =>
-          g.factors.length > 0 && (
-            <FactorGroup key={i} label={g.label} factors={g.factors} disabled={saving} />
-          ),
+          g.factors.length > 0 && <FactorGroup key={i} label={g.label} factors={g.factors} />,
       )}
     </Box>
   );
 }
 
-function FactorGroup({
-  label,
-  factors,
-  disabled,
-}: {
-  label: string;
-  factors: Factor[];
-  disabled: boolean;
-}) {
+function FactorGroup({ label, factors }: { label: string; factors: Factor[] }) {
   return (
-    <Box sx={{ mb: 2 }}>
+    <Box sx={{ mb: 2.5 }}>
       <Typography
         variant="overline"
         color="text.secondary"
@@ -171,19 +150,26 @@ function FactorGroup({
           key={f.id}
           sx={{
             display: "flex",
-            alignItems: "center",
-            gap: 2,
-            py: 0.5,
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: { xs: 0.25, sm: 3 },
+            py: { xs: 0.75, sm: 0.5 },
             px: 1,
             borderRadius: 1,
             "&:hover": { bgcolor: "action.hover" },
-            opacity: disabled ? 0.6 : 1,
           }}
         >
-          <Typography variant="body2" sx={{ flex: 1 }} noWrap>
+          <Typography
+            variant="body2"
+            sx={{ width: { sm: 200 }, flexShrink: 0 }}
+            noWrap
+            title={f.label}
+          >
             {f.label}
           </Typography>
-          <ImportanceSlider value={f.weight} onChange={f.set} />
+          <Box sx={{ flex: 1, maxWidth: { sm: 380 }, minWidth: 0 }}>
+            <ImportanceSlider value={f.weight} onChange={f.set} />
+          </Box>
         </Box>
       ))}
     </Box>

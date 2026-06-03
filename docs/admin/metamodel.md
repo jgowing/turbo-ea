@@ -63,7 +63,7 @@ The special section name `__description` adds fields to the Description section 
 
 #### Data quality scoring
 
-A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus four built-in factors — is managed in one place: the **Data quality** panel on the card-type editor.
+A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus four built-in factors — is managed in one place: the **Data quality** tab of the card-type editor, opened with the quality icon at the top (next to the translation icon).
 
 Each factor has an importance set with a simple slider across four tiers, which also shows the underlying number:
 
@@ -74,7 +74,7 @@ Each factor has an importance set with a simple slider across four tiers, which 
 
 The panel lists the four **built-in factors** — **Description**, **Lifecycle** (whether any lifecycle date is set), **mandatory Relations**, and **mandatory Tags** — followed by every field grouped by its section, each with the same slider. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
 
-A **score composition** bar at the top of the panel shows each factor's share of the maximum possible score, so you can see at a glance which factors dominate. In the layout editor above, each field also shows a small badge with its current tier number.
+A **score composition** bar at the top of the tab shows each factor's share of the maximum possible score, so you can see at a glance which factors dominate. In the card layout, each field also shows a small badge with its current tier number.
 
 Changing any importance immediately re-scores every existing card of that type. New fields default to *Normal*, so they count toward the score as soon as you add them.
 
