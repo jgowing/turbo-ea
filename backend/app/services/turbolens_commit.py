@@ -19,6 +19,7 @@ from app.models.card_type import CardType
 from app.models.relation import Relation
 from app.models.relation_type import RelationType
 from app.models.turbolens import TurboLensAnalysisRun, TurboLensAssessment
+from app.services.data_quality import calc_data_quality
 
 logger = logging.getLogger("turboea.turbolens.commit")
 
@@ -41,37 +42,6 @@ async def _update_progress(db: AsyncSession, run_id: str, progress: dict[str, An
         run.results = {"progress": progress}
         flag_modified(run, "results")
         await db.commit()
-
-
-async def _calc_data_quality(db: AsyncSession, card_type_key: str, card: Card) -> float:
-    """Calculate data quality score for a card based on its type's field weights."""
-    ct_result = await db.execute(select(CardType).where(CardType.key == card_type_key))
-    card_type = ct_result.scalar_one_or_none()
-    if not card_type or not card_type.fields_schema:
-        return 0.0
-
-    total_weight = 0.0
-    filled_weight = 0.0
-    attrs = card.attributes or {}
-
-    for section in card_type.fields_schema:
-        for field in section.get("fields", []):
-            weight = field.get("weight", 1)
-            if weight <= 0:
-                continue
-            total_weight += weight
-            val = attrs.get(field["key"])
-            if val is not None and val != "" and val is not False:
-                filled_weight += weight
-
-    # Description weight
-    total_weight += 1
-    if card.description:
-        filled_weight += 1
-
-    if total_weight == 0:
-        return 0.0
-    return round((filled_weight / total_weight) * 100, 1)
 
 
 async def _generate_description(
@@ -260,7 +230,7 @@ async def execute_commit(db: AsyncSession, run_id: str, data: dict[str, Any]) ->
         created_by=user_id,
         updated_by=user_id,
     )
-    initiative.data_quality = await _calc_data_quality(db, "Initiative", initiative)
+    initiative.data_quality = await calc_data_quality(db, initiative)
     db.add(initiative)
     await db.flush()
     current_step += 1
@@ -318,7 +288,7 @@ async def execute_commit(db: AsyncSession, run_id: str, data: dict[str, Any]) ->
             created_by=user_id,
             updated_by=user_id,
         )
-        new_card.data_quality = await _calc_data_quality(db, card_type_key, new_card)
+        new_card.data_quality = await calc_data_quality(db, new_card)
         db.add(new_card)
         await db.flush()
 

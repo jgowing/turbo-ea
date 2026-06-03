@@ -179,6 +179,15 @@ export interface SectionConfig {
   __order?: string[];
 }
 
+// Admin-tunable weights for the built-in data-quality contributors. Each
+// defaults to 1 (counts); 0 excludes the contributor from the score.
+export interface DataQualityConfig {
+  description?: number;
+  lifecycle?: number;
+  relations?: number;
+  tags?: number;
+}
+
 export interface CardType {
   key: string;
   label: string;

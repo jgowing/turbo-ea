@@ -45,7 +45,7 @@ Fields define the custom attributes available on cards of this type. Each field 
 | **Type** | text, multiline_text, number, cost, boolean, date, url, single_select, or multiple_select |
 | **Options** | For select fields: the available choices with labels and optional colors |
 | **Required** | Whether the field must be filled for data quality scoring |
-| **Weight** | How much this field contributes to the data quality score (0–10) |
+| **Data quality** | Each field's contribution to the score is managed in the **Data quality** panel — see [Data quality scoring](#data-quality-scoring) below |
 | **Read-only** | Prevents manual editing (useful for calculated fields) |
 
 Click **+ Add Field** to create a new field, or click an existing field to edit it in the **Field Editor Dialog**.
@@ -60,6 +60,23 @@ Fields are organized into **sections** on the card detail page. You can:
 - Drag fields between sections and reorder them
 
 The special section name `__description` adds fields to the Description section of the card detail page.
+
+#### Data quality scoring
+
+A card's **data quality** score is a weighted measure of how complete it is. Every contributing factor — each field plus four built-in factors — is managed in one place: the **Data quality** tab of the card-type editor. (The editor is organised into tabs — Main, Relations, Stakeholder roles, and Data quality — with translations available from the icon in the header.)
+
+Each factor has an importance set with a simple slider across four tiers, which also shows the underlying number:
+
+- **Ignore (0)** — excluded from the score entirely.
+- **Normal (1)** — counts once (the default).
+- **Important (2)** — counts twice as much.
+- **Critical (3)** — counts three times as much.
+
+The panel lists the four **built-in factors** — **Description**, **Lifecycle** (whether any lifecycle date is set), **mandatory Relations**, and **mandatory Tags** — followed by every field grouped by its section, each with the same slider. For example, set **Lifecycle** to *Ignore* for a type whose cards legitimately never carry dates, so they are not penalized.
+
+A **score composition** bar at the top of the tab shows each factor's share of the maximum possible score, so you can see at a glance which factors dominate. In the **Main** tab's card layout, each field — and the built-in Description, Lifecycle and Relations sections — shows a small badge with its current tier number, so you can see the weighting without leaving that tab.
+
+Changing any importance immediately re-scores every existing card of that type. New fields default to *Normal*, so they count toward the score as soon as you add them.
 
 #### Subtypes (Sub-Templates)
 

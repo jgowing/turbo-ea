@@ -180,16 +180,9 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
             }
             label={t("metamodel.fieldEditor.required")}
           />
-          <TextField
-            label={t("metamodel.fieldEditor.weight")}
-            type="number"
-            value={field.weight ?? 0}
-            onChange={(e) =>
-              setField({ ...field, weight: Number(e.target.value) })
-            }
-            sx={{ width: 120 }}
-            size="small"
-          />
+          <Typography variant="caption" color="text.secondary">
+            {t("metamodel.fieldEditor.weightMovedHint")}
+          </Typography>
         </Box>
         {isSelect && (
           <>

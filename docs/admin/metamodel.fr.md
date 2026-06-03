@@ -45,7 +45,7 @@ Les champs définissent les attributs personnalisés disponibles sur les fiches 
 | **Type** | text, multiline_text, number, cost, boolean, date, url, single_select ou multiple_select |
 | **Options** | Pour les champs de sélection : les choix disponibles avec libellés et couleurs optionnelles |
 | **Obligatoire** | Si le champ doit être rempli pour le calcul du score de qualité des données |
-| **Poids** | Contribution de ce champ au score de qualité des données (0-10) |
+| **Qualité des données** | La contribution de chaque champ au score est gérée dans le panneau **Qualité des données** (voir ci-dessous) |
 | **Lecture seule** | Empêche la modification manuelle (utile pour les champs calculés) |
 
 Cliquez sur **+ Ajouter un champ** pour créer un nouveau champ, ou cliquez sur un champ existant pour le modifier dans le **Dialogue de l'éditeur de champs**.
@@ -60,6 +60,23 @@ Les champs sont organisés en **sections** sur la page de détail des fiches. Vo
 - Glisser les champs entre les sections et les réorganiser
 
 Le nom de section special `__description` ajoute les champs à la section Description de la page de détail des fiches.
+
+#### Évaluation de la qualité des données
+
+Le score de **qualité des données** d'une fiche mesure de manière pondérée son niveau de complétude. Chaque facteur contributeur – chaque champ ainsi que quatre facteurs intégrés – est géré au même endroit : l'onglet **Qualité des données** de l'éditeur de type de fiche. (L'éditeur est organisé en onglets – Principal, Relations, Rôles des parties prenantes et Qualité des données – les traductions sont accessibles via l'icône de l'en-tête.)
+
+L'importance de chaque facteur se règle avec un simple curseur à quatre niveaux, qui affiche aussi le nombre sous-jacent :
+
+- **Ignorer (0)** – entièrement exclu du score.
+- **Normale (1)** – compte une fois (par défaut).
+- **Important (2)** – compte deux fois plus.
+- **Critique (3)** – compte trois fois plus.
+
+Le panneau liste les quatre **facteurs intégrés** – **Description**, **Cycle de vie** (selon qu'une date de cycle de vie est renseignée), **Relations obligatoires** et **Étiquettes obligatoires** – suivis de chaque champ regroupé par section, avec le même curseur. Par exemple, réglez le **Cycle de vie** sur *Ignorer* pour un type dont les fiches ne portent légitimement jamais de dates, afin qu'elles ne soient pas pénalisées.
+
+Une barre de **composition du score** en haut du panneau montre la part de chaque facteur dans le score maximal possible, pour voir d'un coup d'œil quels facteurs dominent. Dans la mise en page de la fiche de l'onglet **Principal**, chaque champ – ainsi que les sections intégrées Description, Cycle de vie et Relations – affiche un petit badge avec son niveau actuel, pour voir la pondération sans quitter cet onglet.
+
+Modifier une importance recalcule immédiatement le score de chaque fiche existante de ce type. Les nouveaux champs sont *Normale* par défaut et comptent donc dans le score dès que vous les ajoutez.
 
 #### Sous-types (Sous-modèles)
 

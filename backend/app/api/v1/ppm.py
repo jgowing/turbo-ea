@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.card import Card
-from app.models.card_type import CardType
 from app.models.ppm_cost_line import PpmBudgetLine, PpmCostLine
 from app.models.ppm_dependency import PpmDependency
 from app.models.ppm_risk import PpmRisk
@@ -50,6 +49,7 @@ from app.schemas.ppm import (
     ReporterOut,
 )
 from app.services import notification_service
+from app.services.data_quality import calc_data_quality
 from app.services.permission_service import PermissionService
 
 router = APIRouter(prefix="/ppm", tags=["ppm"])
@@ -96,40 +96,9 @@ async def _sync_initiative_costs(db: AsyncSession, initiative_id: str) -> None:
     attrs["costActual"] = total_actual if total_actual else None
     card.attributes = attrs
 
-    # Recalculate data quality
-    ct_result = await db.execute(
-        select(CardType.fields_schema, CardType.subtypes).where(CardType.key == card.type)
-    )
-    ct_row = ct_result.one_or_none()
-    if ct_row:
-        schema, subtypes = ct_row
-        hidden_keys: set[str] = set()
-        if card.subtype and subtypes:
-            for st in subtypes:
-                if st.get("key") == card.subtype:
-                    hidden_keys = set(st.get("hidden_fields", []))
-                    break
-        total_w = 0.0
-        filled_w = 0.0
-        for section in schema:
-            for field in section.get("fields", []):
-                if field["key"] in hidden_keys:
-                    continue
-                weight = field.get("weight", 1)
-                if weight <= 0:
-                    continue
-                total_w += weight
-                val = attrs.get(field["key"])
-                if val is not None and val != "" and val is not False:
-                    filled_w += weight
-        total_w += 1  # description
-        if card.description and card.description.strip():
-            filled_w += 1
-        total_w += 1  # lifecycle
-        lc = card.lifecycle or {}
-        if any(lc.get(k) for k in ("plan", "phaseIn", "active", "phaseOut", "endOfLife")):
-            filled_w += 1
-        card.data_quality = round((filled_w / total_w * 100) if total_w > 0 else 0, 1)
+    # Recalculate data quality via the canonical scorer (honours per-type
+    # field weights and the admin-tuned built-in contributor weights).
+    card.data_quality = await calc_data_quality(db, card)
 
     await db.commit()
 

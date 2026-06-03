@@ -5603,7 +5603,14 @@ SOAW_INITIATIVE_REFS = ["init_digital_program", "init_sap_migration", "init_iot_
 # SEED FUNCTION  (called from main.py or CLI)
 # ===================================================================
 def _compute_data_quality(d: dict, type_schemas: dict[str, list]) -> float:
-    """Compute data quality score for a card dict using the same logic as the API."""
+    """Compute an approximate data quality score for a card dict during seeding.
+
+    Intentionally standalone (not the canonical ``calc_data_quality``): seeding
+    operates on plain dicts before relations/tags exist, so it cannot evaluate
+    the mandatory-relation/tag buckets and always uses default contributor
+    weights. Real scores are recomputed via the canonical scorer on the first
+    card edit.
+    """
     schema = type_schemas.get(d["type"], [])
     total_weight = 0.0
     filled_weight = 0.0

@@ -1519,8 +1519,8 @@ async def submit_ai_verdict(
     if card is None:
         raise HTTPException(404, "Impacted card not found")
 
-    from app.api.v1.cards import _calc_data_quality
     from app.services.calculation_engine import run_calculations_for_card
+    from app.services.data_quality import calc_data_quality
     from app.services.event_bus import event_bus
 
     new_value = verdict == "confirmed"
@@ -1532,7 +1532,7 @@ async def submit_ai_verdict(
         card.updated_by = user.id
         if card.approval_status == "APPROVED":
             card.approval_status = "BROKEN"
-        card.data_quality = await _calc_data_quality(db, card)
+        card.data_quality = await calc_data_quality(db, card)
         await run_calculations_for_card(db, card)
         await event_bus.publish(
             "card.updated",

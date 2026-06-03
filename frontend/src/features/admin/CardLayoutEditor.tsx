@@ -11,6 +11,7 @@ import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import { WeightBadge } from "./metamodel/ImportanceSlider";
 import {
   DndContext,
   closestCenter,
@@ -52,6 +53,10 @@ const BUILTIN_SECTIONS: { key: string; labelKey: string; icon: string; onlyIf?: 
   { key: "successors", labelKey: "cardLayout.builtinSections.successors", icon: "arrow_forward", onlyIf: (ct) => ct.has_successors },
   { key: "relations", labelKey: "cardLayout.builtinSections.relations", icon: "hub" },
 ];
+
+// Built-in layout sections that are also data-quality contributors, so their
+// header shows the same weight badge as fields (mirrors __dataQuality buckets).
+const DQ_SECTION_KEYS = new Set(["description", "lifecycle", "relations"]);
 
 const DEFAULT_ORDER = ["description", "eol", "lifecycle", "__custom__", "hierarchy", "successors", "relations"];
 
@@ -208,6 +213,7 @@ function FieldCard({
         {isProtected ? field.label : rl(field.key, field.translations)}
         {isCalc && <Chip component="span" size="small" label="calc" color="info" sx={{ ml: 0.5, height: 16, fontSize: "0.6rem" }} />}
       </Typography>
+      <WeightBadge weight={field.weight} />
       <Chip size="small" label={field.type.replace("_", " ")} sx={{ bgcolor: fieldTypeColor(field.type), color: "#fff", height: 18, fontSize: "0.6rem" }} />
       {(!isProtected && (onEdit || onDelete)) && (
         <Box className="field-actions" sx={{ display: "flex", gap: 0.25, opacity: 0, transition: "opacity 0.15s" }}>
@@ -851,7 +857,7 @@ function DescriptionFieldsPanel({
 
 function SortableSectionItem({
   id, sectionKey, info, cfg, expanded, onToggleExpand,
-  onToggleCollapsed, onToggleHidden, onDelete, children,
+  onToggleCollapsed, onToggleHidden, onDelete, children, dqWeight,
 }: {
   id: string; sectionKey: string;
   info: { label: string; icon: string; isCustom: boolean; labelKey?: string; section?: SectionDef | null };
@@ -861,6 +867,7 @@ function SortableSectionItem({
   onToggleHidden: () => void;
   onDelete?: () => void;
   children?: React.ReactNode;
+  dqWeight?: number;
 }) {
   const { t } = useTranslation(["admin"]);
   const rl = useResolveLabel();
@@ -877,6 +884,7 @@ function SortableSectionItem({
         <Box onClick={canExpand ? onToggleExpand : undefined} sx={{ display: "flex", alignItems: "center", gap: 0.75, flex: 1, cursor: canExpand ? "pointer" : "default" }}>
           <MaterialSymbol icon={info.icon} size={20} color={cfg.hidden ? "#bbb" : "#666"} />
           <Typography variant="body2" fontWeight={600} sx={{ color: cfg.hidden ? "text.disabled" : "text.primary" }}>{info.labelKey ? t(info.labelKey) : (info.isCustom ? rl(info.label, info.section?.translations) : info.label)}</Typography>
+          {dqWeight !== undefined && <WeightBadge weight={dqWeight} />}
         </Box>
         <Tooltip title={t("cardLayout.collapsedByDefault")}>
           <FormControlLabel
@@ -926,7 +934,8 @@ export default function CardLayoutEditor({
   cardType, onRefresh, openAddField, openEditField, promptDeleteField, promptDeleteSection, calculatedFieldKeys,
 }: CardLayoutEditorProps) {
   const { t } = useTranslation(["admin", "common"]);
-  const secCfg = (cardType.section_config || {}) as Record<string, SectionConfig> & { __order?: string[] };
+  const secCfg = (cardType.section_config || {}) as Record<string, SectionConfig> & { __order?: string[]; __dataQuality?: Record<string, number> };
+  const dqConfig = secCfg.__dataQuality || {};
   const customSections = cardType.fields_schema.filter((s) => s.section !== "__description");
   const sectionOrder = getSectionOrder(secCfg, customSections, cardType.has_hierarchy, cardType.has_successors);
 
@@ -1024,6 +1033,7 @@ export default function CardLayoutEditor({
                 onToggleCollapsed={() => updateSectionProp(key, { defaultExpanded: cfgForSection.defaultExpanded === false })}
                 onToggleHidden={() => updateSectionProp(key, { hidden: !cfgForSection.hidden })}
                 onDelete={info.isCustom && promptDeleteSection && schemaIdx >= 0 ? () => promptDeleteSection(schemaIdx) : undefined}
+                dqWeight={DQ_SECTION_KEYS.has(key) ? (dqConfig[key] ?? 1) : undefined}
               >
                 {info.isCustom && info.section && schemaIdx >= 0 && (
                   <VisualFieldLayout

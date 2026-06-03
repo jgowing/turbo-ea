@@ -45,7 +45,7 @@ Felter definerer de brugerdefinerede egenskaber, der er tilgængelige på kort a
 | **Type** | text, multiline_text, number, cost, boolean, date, url, single_select eller multiple_select |
 | **Indstillinger** | For udvælgelsesfelter: de tilgængelige valg med etiketter og valgfri farver |
 | **Påkrævet** | Hvorvidt feltet skal udfyldes for datakvalitetsscoring |
-| **Vægt** | Hvor meget dette felt bidrager til datakvalitetsscoren (0-10) |
+| **Datakvalitet** | Hvert felts bidrag til scoren håndteres i panelet **Datakvalitet** (se nedenfor) |
 | **Skrivebeskyttet** | Forhindrer manuel redigering (nyttigt for beregnede felter) |
 
 Klik på **+ Tilføj felt** for at oprette et nyt felt, eller klik på et eksisterende felt for at redigere det i **Feltredigeringsdialogen**.
@@ -60,6 +60,23 @@ Felter er organiseret i **sektioner** på kortdetaljesiden. Du kan:
 - Trække felter mellem sektioner og omarrangere dem
 
 Det særlige sektionsnavn `__description` tilføjer felter til Beskrivelsessektionen af kortdetaljesiden.
+
+#### Datakvalitetsscore
+
+Et korts **datakvalitetsscore** er et vægtet mål for, hvor komplet det er. Hver bidragende faktor – hvert felt samt fire indbyggede faktorer – håndteres ét sted: fanen **Datakvalitet** i korttypeeditoren. (Editoren er organiseret i faner – Generelt, Relationer, Interessentroller og Datakvalitet – oversættelser er tilgængelige via ikonet i headeren.)
+
+Hver faktors vigtighed angives med en enkel skyder over fire niveauer, der også viser det underliggende tal:
+
+- **Ignorér (0)** – udelukket helt fra scoren.
+- **Normal (1)** – tæller én gang (standard).
+- **Vigtig (2)** – tæller dobbelt.
+- **Kritisk (3)** – tæller tredobbelt.
+
+Panelet viser de fire **indbyggede faktorer** – **Beskrivelse**, **Livscyklus** (om der er angivet en livscyklusdato), **obligatoriske relationer** og **obligatoriske tags** – efterfulgt af hvert felt grupperet efter sin sektion, hver med den samme skyder. Sæt for eksempel **Livscyklus** til *Ignorér* for en type, hvis kort legitimt aldrig har datoer, så de ikke straffes.
+
+En **scorens sammensætning**-bjælke øverst i panelet viser hver faktors andel af den maksimalt mulige score, så du med et blik kan se, hvilke faktorer der dominerer. I kortlayoutet på fanen **Generelt** viser hvert felt – og de indbyggede sektioner Beskrivelse, Livscyklus og Relationer – et lille mærke med sit aktuelle niveaunummer, så du kan se vægtningen uden at forlade fanen.
+
+Ændring af en vigtighed genberegner straks scoren for alle eksisterende kort af den type. Nye felter er som standard *Normal* og tæller derfor med i scoren, så snart du tilføjer dem.
 
 #### Undertyper (sub-skabeloner)
 

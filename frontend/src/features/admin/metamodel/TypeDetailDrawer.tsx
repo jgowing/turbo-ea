@@ -15,7 +15,8 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
-import Divider from "@mui/material/Divider";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import CircularProgress from "@mui/material/CircularProgress";
 import MaterialSymbol from "@/components/MaterialSymbol";
 import ColorPicker from "@/components/ColorPicker";
@@ -32,12 +33,15 @@ import type {
 } from "@/types";
 import { emptyField } from "./helpers";
 import FieldEditorDialog from "./FieldEditorDialog";
+import DataQualityPanel from "./DataQualityPanel";
 import StakeholderRolePanel from "./StakeholderRolePanel";
 import TranslationDialog from "./TranslationDialog";
 
 /* ------------------------------------------------------------------ */
 /*  Type Detail Dialog (full-width, 2-panel layout)                    */
 /* ------------------------------------------------------------------ */
+
+type TabKey = "main" | "relations" | "stakeholders" | "dataQuality";
 
 export interface TypeDrawerProps {
   open: boolean;
@@ -85,6 +89,15 @@ export default function TypeDetailDrawer({
 
   /* --- Translation dialog --- */
   const [translationDialogOpen, setTranslationDialogOpen] = useState(false);
+
+  /* --- Drawer tab (general / relations / stakeholders / data quality) --- */
+  const [tab, setTab] = useState<TabKey>("main");
+  // Reset to the main tab only when switching to a different type — not on the
+  // object-identity churn from onRefresh (which would kick the user out of the
+  // current tab on every slider change).
+  useEffect(() => {
+    setTab("main");
+  }, [typeKey]);
 
   /* --- Field editor --- */
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
@@ -470,8 +483,19 @@ export default function TypeDetailDrawer({
         </Alert>
       )}
 
+      <Box sx={{ borderBottom: 1, borderColor: "divider", px: { xs: 2, sm: 4 } }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v as TabKey)} variant="scrollable" scrollButtons="auto">
+          <Tab value="main" label={t("metamodel.typeDrawer.tabMain")} />
+          <Tab value="relations" label={t("metamodel.typeDrawer.relations")} />
+          <Tab value="stakeholders" label={t("metamodel.stakeholderPanel.title")} />
+          <Tab value="dataQuality" label={t("metamodel.dataQuality.title")} />
+        </Tabs>
+      </Box>
+
       {/* ---------- Single scrollable body ---------- */}
-      <Box sx={{ flex: 1, overflow: "auto", px: 4, py: 3 }}>
+      <Box sx={{ flex: 1, overflow: "auto", px: { xs: 2, sm: 4 }, py: 3 }}>
+        {tab === "main" && (
+        <>
         {/* -- Type Properties -- */}
         <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 2 }}>
           {t("metamodel.typeDrawer.typeProperties")}
@@ -522,10 +546,8 @@ export default function TypeDetailDrawer({
           </Box>
         </Box>
 
-        {/* -- Subtypes + Relations (side by side) -- */}
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}>
-          {/* Subtypes */}
-          <Box>
+        {/* -- Subtypes -- */}
+        <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
               {t("metamodel.typeDrawer.subtypes")}
             </Typography>
@@ -592,9 +614,25 @@ export default function TypeDetailDrawer({
                 {t("metamodel.typeDrawer.addSubtype")}
               </Button>
             )}
-          </Box>
+        </Box>
 
-          {/* Relations */}
+        {/* -- Card Layout -- */}
+        {cardTypeKey && (
+          <CardLayoutEditor
+            cardType={cardTypeKey}
+            onRefresh={onRefresh}
+            openAddField={openAddField}
+            openEditField={openEditField}
+            promptDeleteField={promptDeleteField}
+            promptDeleteSection={promptDeleteSection}
+            calculatedFieldKeys={calculatedFieldKeys}
+          />
+        )}
+        </>
+        )}
+
+        {/* -- Relations tab -- */}
+        {tab === "relations" && (
           <Box>
             <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1.5 }}>
               {t("metamodel.typeDrawer.relations")}
@@ -677,27 +715,19 @@ export default function TypeDetailDrawer({
               {t("metamodel.typeDrawer.addRelation")}
             </Button>
           </Box>
-        </Box>
+        )}
 
-        {/* -- Stakeholder Roles -- */}
+        {/* -- Stakeholder Roles tab -- */}
+        {tab === "stakeholders" && (
         <StakeholderRolePanel
           typeKey={cardTypeKey.key}
           onError={(msg) => setError(msg)}
         />
+        )}
 
-        <Divider sx={{ my: 3 }} />
-
-        {/* -- Card Layout -- */}
-        {cardTypeKey && (
-          <CardLayoutEditor
-            cardType={cardTypeKey}
-            onRefresh={onRefresh}
-            openAddField={openAddField}
-            openEditField={openEditField}
-            promptDeleteField={promptDeleteField}
-            promptDeleteSection={promptDeleteSection}
-            calculatedFieldKeys={calculatedFieldKeys}
-          />
+        {/* -- Data Quality tab -- */}
+        {tab === "dataQuality" && (
+          <DataQualityPanel cardType={cardTypeKey} onRefresh={onRefresh} />
         )}
       </Box>
 

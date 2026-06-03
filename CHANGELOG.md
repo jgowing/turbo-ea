@@ -5,6 +5,14 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.38.0] - 2026-06-02
+
+### Added
+- **Tunable data quality.** The card-type editor is now organised into tabs — Main, Relations, Stakeholder roles, and Data quality (translations remain on the header icon). The new **Data quality** tab puts every factor that feeds the data-quality score in one place: each field plus the four built-in contributors (Description, Lifecycle, mandatory Relations, mandatory Tags). Each one has a simple four-tier importance slider that also shows the underlying number — **Ignore (0)** drops it from the score, **Normal (1)**, **Important (2)**, and **Critical (3)** make it count progressively more — replacing the old unlabeled per-field weight box. A score-composition bar shows each factor's share of the maximum at a glance, and field rows in the layout editor carry a small tier badge. You can, for example, set Lifecycle to *Ignore* so cards that legitimately have no dates aren't penalised. Changing any importance immediately re-scores every existing card of that type — no need to re-save each one.
+
+### Fixed
+- **New custom fields no longer silently ignored by data quality.** A field added to a card type used to default to a weight of 0, which quietly excluded it from the completeness score until an admin noticed the obscure weight box and bumped it. New fields now default to "Normal" and count toward data quality as expected.
+
 ## [1.37.0] - 2026-06-02
 
 ### Added

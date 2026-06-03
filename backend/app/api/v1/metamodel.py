@@ -25,6 +25,22 @@ logger = logging.getLogger("turboea.metamodel")
 router = APIRouter(prefix="/metamodel", tags=["metamodel"])
 
 
+def _scoring_signature(fields_schema: list | None, section_config: dict | None) -> dict:
+    """Capture the data-quality-relevant config of a card type.
+
+    Used to detect when an admin edit changes how scores are computed (field
+    weights or the built-in contributor weights) so existing cards can be
+    re-scored. Label/icon/order edits leave this signature unchanged.
+    """
+    field_weights: dict[str, float] = {}
+    for section in fields_schema or []:
+        for field in section.get("fields", []):
+            if "key" in field:
+                field_weights[field["key"]] = field.get("weight", 1)
+    dq_cfg = (section_config or {}).get("__dataQuality") or {}
+    return {"fields": field_weights, "dq": dq_cfg}
+
+
 # ── Helpers ────────────────────────────────────────────────────────────
 
 
@@ -391,6 +407,11 @@ async def update_type(
             body["fields_schema"] or [],
         )
 
+    # Snapshot the data-quality-relevant config so we can re-score existing
+    # cards if (and only if) the admin changed field weights or the built-in
+    # contributor weights.
+    old_signature = _scoring_signature(t.fields_schema, t.section_config)
+
     updatable = [
         "label",
         "description",
@@ -413,7 +434,31 @@ async def update_type(
 
     await db.commit()
     await db.refresh(t)
+
+    # Re-score existing cards when the scoring config actually changed, so
+    # tuned data-quality weights take effect immediately instead of waiting
+    # for each card to be edited.
+    new_signature = _scoring_signature(t.fields_schema, t.section_config)
+    if new_signature != old_signature:
+        await _recompute_data_quality_for_type(db, key)
+
     return _serialize_type(t)
+
+
+async def _recompute_data_quality_for_type(db: AsyncSession, type_key: str) -> None:
+    """Recompute data_quality for every active card of a type after a config change."""
+    from app.services.data_quality import calc_data_quality
+
+    result = await db.execute(select(Card).where(Card.type == type_key, Card.status == "ACTIVE"))
+    cards = result.scalars().all()
+    changed = False
+    for card in cards:
+        score = await calc_data_quality(db, card)
+        if card.data_quality != score:
+            card.data_quality = score
+            changed = True
+    if changed:
+        await db.commit()
 
 
 @router.delete("/types/{key}")

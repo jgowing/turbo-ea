@@ -71,6 +71,7 @@ from app.services.card_completeness import missing_mandatory
 from app.services.card_resolver import CardResolver
 from app.services.card_uniqueness import check_sibling_name_unique
 from app.services.cost_field_filter import cost_field_keys_from_card_schema
+from app.services.data_quality import calc_data_quality
 from app.services.event_bus import event_bus
 from app.services.permission_service import PermissionService
 
@@ -164,62 +165,6 @@ async def _validate_strict_attributes(db: AsyncSession, card_type: str, attribut
                 "card_type": card_type,
             },
         )
-
-
-async def _calc_data_quality(db: AsyncSession, card: Card) -> float:
-    """Calculate data quality score from fields_schema weights."""
-    result = await db.execute(
-        select(CardType.fields_schema, CardType.subtypes).where(CardType.key == card.type)
-    )
-    row = result.one_or_none()
-    if not row:
-        return 0.0
-    schema, subtypes = row
-
-    # Determine hidden fields for the card's subtype
-    hidden_keys: set[str] = set()
-    if card.subtype and subtypes:
-        for st in subtypes:
-            if st.get("key") == card.subtype:
-                hidden_keys = set(st.get("hidden_fields", []))
-                break
-
-    total_weight = 0.0
-    filled_weight = 0.0
-    attrs = card.attributes or {}
-
-    for section in schema:
-        for field in section.get("fields", []):
-            if field["key"] in hidden_keys:
-                continue
-            weight = field.get("weight", 1)
-            if weight <= 0:
-                continue
-            total_weight += weight
-            val = attrs.get(field["key"])
-            if val is not None and val != "" and val is not False:
-                filled_weight += weight
-
-    # Also count description (weight 1) and lifecycle having at least one date (weight 1)
-    total_weight += 1  # description
-    if card.description and card.description.strip():
-        filled_weight += 1
-
-    total_weight += 1  # lifecycle
-    lc = card.lifecycle or {}
-    if any(lc.get(p) for p in ("plan", "phaseIn", "active", "phaseOut", "endOfLife")):
-        filled_weight += 1
-
-    # Each applicable mandatory relation side and each applicable mandatory
-    # tag group contributes +1 to total, +1 to filled only when satisfied.
-    state = await missing_mandatory(db, card)
-    total_weight += state["relations_applicable"] + state["tag_groups_applicable"]
-    filled_weight += state["relations_applicable"] - len(state["relations"])
-    filled_weight += state["tag_groups_applicable"] - len(state["tag_groups"])
-
-    if total_weight == 0:
-        return 0.0
-    return round((filled_weight / total_weight) * 100, 1)
 
 
 async def _max_descendant_depth(db: AsyncSession, card_id: uuid.UUID) -> int:
@@ -778,7 +723,7 @@ async def create_card(
     await _sync_capability_level(db, card)
 
     # Compute data quality score
-    card.data_quality = await _calc_data_quality(db, card)
+    card.data_quality = await calc_data_quality(db, card)
 
     # Run calculated fields (skip PPM-managed cost fields if PPM data exists)
     ppm_excl = await _get_ppm_exclusions(db, card)
@@ -979,7 +924,7 @@ async def bulk_create_cards(
             if card.parent_id:
                 await _check_hierarchy_depth(db, card, card.parent_id)
             await _sync_capability_level(db, card)
-            card.data_quality = await _calc_data_quality(db, card)
+            card.data_quality = await calc_data_quality(db, card)
             ppm_excl = await _get_ppm_exclusions(db, card)
             await run_calculations_for_card(db, card, exclude_fields=ppm_excl)
 
@@ -1892,7 +1837,7 @@ async def update_card(
             await _sync_capability_level(db, card)
 
         # Recalculate completion
-        card.data_quality = await _calc_data_quality(db, card)
+        card.data_quality = await calc_data_quality(db, card)
 
         # Run calculated fields (skip PPM-managed cost fields if PPM data exists)
         ppm_excl = await _get_ppm_exclusions(db, card)
