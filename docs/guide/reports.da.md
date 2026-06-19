@@ -31,6 +31,10 @@ Skærmbilledet ovenfor viser en typisk use case: vælg **Data Object** som kortt
 
 Ved skift af korttype ryddes valg af gruppering, farvelægning og filtre (de refererer til feltnøgler, der ikke findes på den nye type), og rapporten genindlæses med de felter, relationer og tags, der gælder for den valgte type. Rapporten deler samme tilladelse som Application Portfolio (`reports.portfolio`) og gemmes uafhængigt af den.
 
+### Relationsundertyper
+
+Når et korts relationer bærer en «type»-værdi — for eksempel **anvendelsestypen** (Ejer / Bruger / Interessent) på Organisation→Applikation-relationer eller **supporttypen** på Applikation→Forretningskapabilitet-relationer — kan du farve kortene efter den værdi og filtrere på den. **Gruppér rapporten efter den relaterede korttype** for at bruge dem (f.eks. *Gruppér efter → Organisation* for at låse op for *anvendelsestype*): undertypen vises derefter under gruppen **Relationsundertyper** i *Farvelæg efter*-rullelisten og som sin egen filterrække. Da hvert kort vises under ét relateret kort, farves det efter *den* relation — en applikation, der er *Bruger* af én organisation, vises som Bruger der, selv om den ejes af en anden.
+
 ## Kompetencekort
 
 ![Forretningskompetencekort](../assets/img/en/11_capability_map.png)

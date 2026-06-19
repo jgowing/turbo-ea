@@ -31,6 +31,10 @@ La capture ci-dessus illustre un cas d'usage typique : choisissez **Objet de don
 
 Changer de type de carte réinitialise les sélections de regroupement, de coloration et de filtres (elles référencent des clés de champs qui n'existent pas sur le nouveau type) et le rapport est rechargé avec les champs, relations et tags applicables au type choisi. Le rapport partage la même permission que le Portefeuille applicatif (`reports.portfolio`) et est enregistré indépendamment.
 
+### Sous-types de relation
+
+Lorsque les relations d'une carte portent une valeur de « type » — par exemple le **type d'utilisation** (Propriétaire / Utilisateur / Partie prenante) sur les relations Organisation→Application, ou le **type de support** sur les relations Application→Capacité métier — vous pouvez colorer les cartes selon cette valeur et filtrer dessus. **Groupez le rapport par le type de carte lié** pour les utiliser (par ex. *Grouper par → Organisation* pour débloquer le *type d'utilisation*) : le sous-type apparaît alors sous le groupe **Sous-types de relation** dans la liste *Colorer par* et dans sa propre ligne de filtres. Comme chaque carte est affichée sous une carte liée, elle est colorée selon *cette* relation — une application qui est *Utilisateur* d'une organisation s'affiche comme Utilisateur à cet endroit, même si elle appartient à une autre.
+
 ## Carte de capacités
 
 ![Carte de capacités métier](../assets/img/fr/11_carte_capacites.png)

@@ -31,6 +31,10 @@ The screenshot above shows a typical use case: pick **Data Object** as the card 
 
 Switching the card type clears the group-by, colour-by, and filter selections (they reference field keys that don't exist on the new type) and the report re-loads with the fields, relations, and tags applicable to the chosen type. The report shares the same permission as the Application Portfolio (`reports.portfolio`) and saves independently of it.
 
+### Relation subtypes
+
+When a card's relations carry a "type" value — for example the **Usage Type** (Owner / User / Stakeholder) on Organization→Application relations, or the **Support Type** on Application→Business Capability relations — you can colour the cards by that value and filter on it. **Group the report by the related card type** to use them (e.g. *Group by → Organization* to unlock *Usage Type*): the subtype then appears under a **Relation Subtypes** group in the *Color by* dropdown and as its own filter row. Because each card is shown under one related card, it is coloured by *that* relation — an application that is a *User* of one organisation shows as User there, even if it is owned by another.
+
 ## Capability Map
 
 ![Business Capability Map](../assets/img/en/11_capability_map.png)
