@@ -45,7 +45,7 @@ const WebPortalsAdmin = lazy(() => import("./WebPortalsAdmin"));
 const ServiceNowAdmin = lazy(() => import("./ServiceNowAdmin"));
 const AiAdmin = lazy(() => import("./AiAdmin"));
 const TurboLensAdmin = lazy(() => import("./TurboLensAdmin"));
-const MigrationAdmin = lazy(() => import("./MigrationAdmin"));
+const MigrationHub = lazy(() => import("./MigrationHub"));
 const AuditLogAdmin = lazy(() => import("./AuditLogAdmin"));
 
 const TAB_KEYS = [
@@ -1522,7 +1522,7 @@ export default function SettingsAdmin() {
       )}
       {tabIndex === 7 && (
         <Suspense fallback={<TabLoader />}>
-          <MigrationAdmin />
+          <MigrationHub />
         </Suspense>
       )}
       {tabIndex === 8 && (
