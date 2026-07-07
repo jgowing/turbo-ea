@@ -231,7 +231,8 @@ Pour chaque mapping de champ, vous configurez :
 | Paramètre | Description |
 |-----------|-------------|
 | **Champ Turbo EA** | Chemin du champ dans Turbo EA (l'autocompletion suggere des options basées sur le type de fiche) |
-| **Champ SNOW** | Nom de colonne API ServiceNow (par ex. `name`, `short_description`) |
+| **Champ SNOW** | Nom de colonne API ServiceNow (par ex. `name`, `short_description`). Laissez vide pour écrire une constante fixe (voir ci-dessous) |
+| **Valeur par défaut** | Valeur écrite lorsque le champ ServiceNow est vide ou absent (voir ci-dessous) |
 | **Direction** | Source de vérité par champ : SNOW dirige ou Turbo dirige |
 | **Transformation** | Comment convertir les valeurs : Direct, Correspondance de valeurs, Date, Booleen |
 | **Identité** (case ID) | Utilise pour la correspondance des enregistrements lors de la synchronisation initiale |
@@ -244,6 +245,7 @@ L'autocompletion regroupe les champs par section. Voici la référence complète
 |--------|-------|-------------------|
 | `name` | Nom d'affichage de la fiche | `"SAP S/4HANA"` |
 | `description` | Description de la fiche | `"Système ERP principal pour les finances"` |
+| `subtype` | Sous-type de la carte (issu de la liste de sous-types du type de carte) | `"hardware"` |
 | `lifecycle.plan` | Cycle de vie : Date de planification | `"2024-01-15"` |
 | `lifecycle.phaseIn` | Cycle de vie : Date de mise en service | `"2024-03-01"` |
 | `lifecycle.active` | Cycle de vie : Date d'activation | `"2024-06-01"` |
@@ -252,6 +254,15 @@ L'autocompletion regroupe les champs par section. Voici la référence complète
 | `attributes.<cle>` | Tout attribut personnalisé du schema de champs du type de fiche | Varie selon le type de champ |
 
 Par exemple, si votre type Application a un champ avec la clé `businessCriticality`, sélectionnez `attributes.businessCriticality` dans la liste déroulante.
+
+### Valeurs par défaut et constantes
+
+La **valeur par défaut** d'un mappage de champ permet de renseigner des données que ServiceNow ne fournit pas. Elle s'applique **uniquement en entrée** (lors d'un pull) et se comporte de deux façons selon qu'un **champ SNOW** est défini :
+
+- **Repli** — Avec à la fois un champ SNOW et une valeur par défaut, celle-ci n'est utilisée que lorsque la valeur ServiceNow est vide ou absente. Une véritable valeur ServiceNow l'emporte toujours.
+- **Constante** — Laissez le champ SNOW vide et définissez seulement une valeur par défaut pour écrire une valeur fixe sur chaque carte synchronisée, indépendamment de ServiceNow. Par exemple, mappez `subtype` sans champ SNOW avec une valeur par défaut `hardware` pour que chaque CI récupéré devienne un composant informatique matériel.
+
+La valeur par défaut est convertie au type du champ cible : les champs `boolean`, `number` et `cost` analysent la valeur ; **les champs à choix multiples acceptent une liste séparée par des virgules** (par ex. `web, backend` devient deux valeurs). Pour combiner plusieurs champs ServiceNow en un seul champ Turbo EA, utilisez un [champ calculé](calculations.md) qui agrège des champs mappés intermédiaires — la couche de mappage mappe une colonne à la fois.
 
 ### Champs d'identité -- Comment fonctionne la correspondance
 
@@ -266,6 +277,11 @@ Marquez un ou plusieurs champs comme **Identité** (icône de clé). Ceux-ci son
 Après la première synchronisation qui établit les liens de la carte d'identité, les synchronisations suivantes utilisent la carte d'identité persistante et ne reposent plus sur la correspondance par nom.
 
 ---
+
+### Ouvrir l'enregistrement ServiceNow
+
+Une fois une carte synchronisée, son onglet **Ressources** affiche une section **ServiceNow** avec un lien direct qui ouvre l'enregistrement correspondant (`https://<votre-instance>/<table>.do?sys_id=<id>`) dans un nouvel onglet. Le lien est en lecture seule et maintenu automatiquement par la synchronisation — rien à configurer. Les cartes jamais synchronisées n'affichent pas la section ; vous pouvez toujours ajouter un lien manuel sous **Liens de documents** sur le même onglet.
+
 
 ## Étape 5 : Exécuter votre première synchronisation
 

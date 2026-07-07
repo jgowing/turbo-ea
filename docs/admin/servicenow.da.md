@@ -231,7 +231,8 @@ For hver feltmapping konfigurerer du:
 | Indstilling | Beskrivelse |
 |---------|-------------|
 | **Turbo EA-felt** | Feltsti i Turbo EA (autocomplete foreslår muligheder baseret på korttype) |
-| **SNOW-felt** | ServiceNow-kolonne-API-navn (f.eks. `name`, `short_description`) |
+| **SNOW-felt** | ServiceNow-kolonne-API-navn (f.eks. `name`, `short_description`). Lad stå tomt for at skrive en fast konstant (se nedenfor) |
+| **Standardværdi** | Værdi der skrives, når ServiceNow-feltet er tomt eller mangler (se nedenfor) |
 | **Retning** | Per-felt-kilde til sandhed: SNOW leder eller Turbo leder |
 | **Transformer** | Hvordan værdier konverteres: Direct, Value Map, Date, Boolean |
 | **Identitet** (ID-afkrydsningsboks) | Bruges til at matche poster under indledende synkronisering |
@@ -244,6 +245,7 @@ Autocomplete grupperer felter efter sektion. Her er den fulde stireference:
 |------|--------|---------------|
 | `name` | Kort-visningsnavn | `"SAP S/4HANA"` |
 | `description` | Kortbeskrivelse | `"Core ERP system for financials"` |
+| `subtype` | Kortets undertype (fra korttypens undertypeliste) | `"hardware"` |
 | `lifecycle.plan` | Livscyklus: Plan-dato | `"2024-01-15"` |
 | `lifecycle.phaseIn` | Livscyklus: Phase In-dato | `"2024-03-01"` |
 | `lifecycle.active` | Livscyklus: Active-dato | `"2024-06-01"` |
@@ -252,6 +254,15 @@ Autocomplete grupperer felter efter sektion. Her er den fulde stireference:
 | `attributes.<key>` | Enhver brugerdefineret egenskab fra korttypens feltskema | Varierer efter felttype |
 
 For eksempel, hvis din Application-type har et felt med nøglen `businessCriticality`, så vælg `attributes.businessCriticality` fra dropdown.
+
+### Standard- og konstantværdier
+
+**Standardværdien** på en feltmapping lader dig udfylde data, som ServiceNow ikke leverer. Den gælder **kun indgående** (under et pull) og opfører sig på to måder, afhængigt af om der er angivet et **SNOW-felt**:
+
+- **Fallback** — Med både et SNOW-felt og en standardværdi bruges standardværdien kun, når ServiceNow-værdien er tom eller mangler. En reel ServiceNow-værdi vinder altid.
+- **Konstant** — Lad SNOW-feltet stå tomt, og angiv kun en standardværdi for at skrive en fast værdi på hvert synkroniseret kort, uafhængigt af ServiceNow. Map f.eks. `subtype` uden SNOW-felt med standardværdien `hardware`, så hvert hentet CI lander som en hardware-IT-komponent.
+
+Standardværdien konverteres til måltypens felttype: `boolean`-, `number`- og `cost`-felter fortolker værdien; **felter med flere valg accepterer en kommasepareret liste** (f.eks. bliver `web, backend` til to værdier). For at kombinere flere ServiceNow-felter i ét Turbo EA-felt skal du bruge et [beregnet felt](calculations.md), der samler mellemliggende mappede felter — mappinglaget mapper én kolonne ad gangen.
 
 ### Identitetsfelter — sådan fungerer matching
 
@@ -266,6 +277,11 @@ Markér et eller flere felter som **Identitet** (nøgleikon). Disse bruges under
 Efter at den første synkronisering etablerer identitetskort-links, bruger efterfølgende synkroniseringer det persistente identitetskort og er ikke afhængige af navnematching.
 
 ---
+
+### Åbn ServiceNow-posten
+
+Når et kort er synkroniseret, viser dets **Ressourcer**-fane en **ServiceNow**-sektion med et direkte link, der åbner den tilsvarende post (`https://<din-instans>/<tabel>.do?sys_id=<id>`) i en ny fane. Linket er skrivebeskyttet og vedligeholdes automatisk af synkroniseringen — intet at konfigurere. Kort, der aldrig er blevet synkroniseret, viser ikke sektionen; du kan stadig tilføje et manuelt link under **Dokumentlinks** på samme fane.
+
 
 ## Trin 5: Kør din første synkronisering
 

@@ -231,7 +231,8 @@ Für jede Feldzuordnung konfigurieren Sie:
 | Einstellung | Beschreibung |
 |-------------|-------------|
 | **Turbo EA-Feld** | Feldpfad in Turbo EA (Autovervollständigung schlägt Optionen basierend auf dem Kartentyp vor) |
-| **SNOW-Feld** | API-Name der ServiceNow-Spalte (z.B. `name`, `short_description`) |
+| **SNOW-Feld** | API-Name der ServiceNow-Spalte (z.B. `name`, `short_description`). Leer lassen, um eine feste Konstante zu schreiben (siehe unten) |
+| **Standardwert** | Wert, der geschrieben wird, wenn das ServiceNow-Feld leer ist oder fehlt (siehe unten) |
 | **Richtung** | Pro-Feld-Quelle der Wahrheit: SNOW führt oder Turbo führt |
 | **Transformation** | Wie Werte konvertiert werden: Direkt, Wertzuordnung, Datum, Boolean |
 | **Identität** (ID-Checkbox) | Wird zum Abgleich von Datensätzen bei der Erstsynchronisation verwendet |
@@ -244,6 +245,7 @@ Die Autovervollständigung gruppiert Felder nach Abschnitt. Hier die vollständi
 |------|------|-------------|
 | `name` | Karten-Anzeigename | `"SAP S/4HANA"` |
 | `description` | Kartenbeschreibung | `"Kern-ERP-System für Finanzen"` |
+| `subtype` | Karten-Subtyp (aus der Subtyp-Liste des Kartentyps) | `"hardware"` |
 | `lifecycle.plan` | Lebenszyklus: Planungsdatum | `"2024-01-15"` |
 | `lifecycle.phaseIn` | Lebenszyklus: Einführungsdatum | `"2024-03-01"` |
 | `lifecycle.active` | Lebenszyklus: Aktivdatum | `"2024-06-01"` |
@@ -252,6 +254,15 @@ Die Autovervollständigung gruppiert Felder nach Abschnitt. Hier die vollständi
 | `attributes.<schlüssel>` | Beliebiges benutzerdefiniertes Attribut aus dem Feldschemata des Kartentyps | Variiert je nach Feldtyp |
 
 Wenn Ihr Application-Typ beispielsweise ein Feld mit dem Schlüssel `businessCriticality` hat, wählen Sie `attributes.businessCriticality` aus dem Dropdown.
+
+### Standard- und Konstantenwerte
+
+Der **Standardwert** einer Feldzuordnung erlaubt es, Daten zu ergänzen, die ServiceNow nicht liefert. Er gilt **nur eingehend** (beim Pull) und verhält sich je nach gesetztem **SNOW-Feld** auf zwei Arten:
+
+- **Fallback** — Sind sowohl ein SNOW-Feld als auch ein Standardwert gesetzt, wird der Standardwert nur verwendet, wenn der ServiceNow-Wert leer ist oder fehlt. Ein echter ServiceNow-Wert hat immer Vorrang.
+- **Konstante** — Lassen Sie das SNOW-Feld leer und setzen Sie nur einen Standardwert, um bei jeder synchronisierten Karte unabhängig von ServiceNow einen festen Wert zu schreiben. Ordnen Sie z.B. `subtype` ohne SNOW-Feld mit dem Standardwert `hardware` zu, damit jedes gezogene CI als Hardware-IT-Komponente landet.
+
+Der Standardwert wird in den Typ des Zielfelds umgewandelt: `boolean`-, `number`- und `cost`-Felder werten den Wert aus; **Mehrfachauswahl-Felder akzeptieren eine kommagetrennte Liste** (z.B. wird aus `web, backend` zwei Werte). Um mehrere ServiceNow-Felder zu einem Turbo-EA-Feld zu kombinieren, verwenden Sie ein [berechnetes Feld](calculations.md), das zwischengespeicherte zugeordnete Felder aggregiert — die Zuordnungsebene ordnet jeweils eine Spalte zu.
 
 ### Identitätsfelder — Wie der Abgleich funktioniert
 
@@ -266,6 +277,11 @@ Markieren Sie ein oder mehrere Felder als **Identität** (Schlüsselsymbol). Die
 Nach der ersten Synchronisation, die Identity-Map-Verknüpfungen erstellt, verwenden nachfolgende Synchronisationen die persistente Identity Map und verlassen sich nicht mehr auf Namensabgleich.
 
 ---
+
+### Den ServiceNow-Datensatz öffnen
+
+Nach der Synchronisierung einer Karte zeigt deren **Ressourcen**-Tab einen Abschnitt **ServiceNow** mit einem direkten Link, der den zugehörigen Datensatz (`https://<ihre-instanz>/<tabelle>.do?sys_id=<id>`) in einem neuen Tab öffnet. Der Link ist schreibgeschützt und wird automatisch von der Synchronisierung gepflegt — nichts zu konfigurieren. Karten, die nie synchronisiert wurden, zeigen den Abschnitt nicht; Sie können auf demselben Tab weiterhin unter **Dokument-Links** einen manuellen Link hinzufügen.
+
 
 ## Schritt 5: Ihre erste Synchronisation ausführen
 

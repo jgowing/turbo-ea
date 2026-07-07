@@ -15,9 +15,11 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.card_type import CardType
 from app.models.servicenow import (
     SnowConnection,
     SnowFieldMapping,
+    SnowIdentityMap,
     SnowMapping,
     SnowStagedRecord,
     SnowSyncRun,
@@ -76,10 +78,14 @@ class ConnectionOut(BaseModel):
 
 class FieldMappingIn(BaseModel):
     turbo_field: str
-    snow_field: str
+    # Empty for a hardcoded constant row (default_value only, no ServiceNow source).
+    snow_field: str = ""
     direction: str = Field("snow_leads", pattern=r"^(snow_leads|turbo_leads)$")
     transform_type: str | None = None
     transform_config: dict | None = None
+    # Default / constant written to turbo_field on inbound sync. Sent as a string
+    # from the UI and coerced to the target field's type (list for multiple_select).
+    default_value: object | None = None
     is_identity: bool = False
 
 
@@ -116,6 +122,7 @@ class FieldMappingOut(BaseModel):
     direction: str
     transform_type: str | None = None
     transform_config: dict | None = None
+    default_value: object | None = None
     is_identity: bool
 
 
@@ -158,6 +165,16 @@ class StagedRecordOut(BaseModel):
     status: str
     error_message: str | None = None
     created_at: str | None = None
+
+
+class SnowLinkOut(BaseModel):
+    """A resolved deep link from a card to its ServiceNow record."""
+
+    connection_name: str
+    table: str
+    sys_id: str
+    url: str
+    last_synced_at: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +227,7 @@ def _mapping_to_out(mapping: SnowMapping) -> MappingOut:
                 direction=fm.direction,
                 transform_type=fm.transform_type,
                 transform_config=fm.transform_config,
+                default_value=fm.default_value,
                 is_identity=fm.is_identity,
             )
             for fm in mapping.field_mappings
@@ -217,6 +235,91 @@ def _mapping_to_out(mapping: SnowMapping) -> MappingOut:
         created_at=mapping.created_at.isoformat() if mapping.created_at else None,
         updated_at=mapping.updated_at.isoformat() if mapping.updated_at else None,
     )
+
+
+def _field_type_for(fields_schema: list | None, turbo_field: str) -> str:
+    """Resolve the target field's metamodel type for a dotted turbo_field path.
+
+    Only ``attributes.<key>`` paths map to a custom field type; core paths
+    (``name``, ``description``, ``lifecycle.*``) are treated as ``text``.
+    """
+    if not turbo_field.startswith("attributes."):
+        return "text"
+    key = turbo_field.split(".", 1)[1]
+    for section in fields_schema or []:
+        for f in section.get("fields", []) or []:
+            if f.get("key") == key:
+                return str(f.get("type", "text"))
+    return "text"
+
+
+def _coerce_default_value(value: object, field_type: str) -> object | None:
+    """Coerce a UI-supplied default to the target field's type.
+
+    ``multiple_select`` targets accept a comma-separated string and are stored
+    as a JSON list so lists survive intact; ``boolean``/``number``/``cost`` are
+    parsed to scalars; everything else is stored as a trimmed string.
+    """
+    if value is None:
+        return None
+    if field_type == "multiple_select":
+        if isinstance(value, list):
+            return [str(v).strip() for v in value if str(v).strip()]
+        return [v.strip() for v in str(value).split(",") if v.strip()]
+    if field_type == "boolean":
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in ("true", "1", "yes")
+    if field_type in ("number", "cost"):
+        if isinstance(value, (int, float)):
+            return value
+        s = str(value).strip()
+        try:
+            return int(s) if re.fullmatch(r"-?\d+", s) else float(s)
+        except ValueError:
+            return None
+    # text, url, date, single_select — keep as a plain (trimmed) string
+    if isinstance(value, (list, dict)):
+        return value
+    return str(value).strip()
+
+
+async def _persist_field_mappings(
+    db: AsyncSession,
+    mapping: SnowMapping,
+    field_mappings: list[FieldMappingIn],
+) -> None:
+    """Create ``SnowFieldMapping`` rows for a mapping, coercing default values.
+
+    Rows are skipped when they carry neither a ``snow_field`` (source column)
+    nor a ``default_value`` — a mapping needs at least one of the two to do
+    anything. The default is coerced against the target card type's field type.
+    """
+    ct_result = await db.execute(select(CardType).where(CardType.key == mapping.card_type_key))
+    card_type = ct_result.scalar_one_or_none()
+    fields_schema = card_type.fields_schema if card_type else []
+
+    for fm_in in field_mappings:
+        if not fm_in.turbo_field:
+            continue
+        default_value = _coerce_default_value(
+            fm_in.default_value, _field_type_for(fields_schema, fm_in.turbo_field)
+        )
+        # A row with no source column and no default does nothing — skip it.
+        if not fm_in.snow_field and default_value is None:
+            continue
+        db.add(
+            SnowFieldMapping(
+                mapping_id=mapping.id,
+                turbo_field=fm_in.turbo_field,
+                snow_field=fm_in.snow_field,
+                direction=fm_in.direction,
+                transform_type=fm_in.transform_type,
+                transform_config=fm_in.transform_config,
+                default_value=default_value,
+                is_identity=fm_in.is_identity,
+            )
+        )
 
 
 def _build_client(conn: SnowConnection) -> ServiceNowClient:
@@ -516,17 +619,7 @@ async def create_mapping(
     db.add(mapping)
     await db.flush()
 
-    for fm_in in body.field_mappings:
-        fm = SnowFieldMapping(
-            mapping_id=mapping.id,
-            turbo_field=fm_in.turbo_field,
-            snow_field=fm_in.snow_field,
-            direction=fm_in.direction,
-            transform_type=fm_in.transform_type,
-            transform_config=fm_in.transform_config,
-            is_identity=fm_in.is_identity,
-        )
-        db.add(fm)
+    await _persist_field_mappings(db, mapping, body.field_mappings)
 
     await db.commit()
 
@@ -600,18 +693,8 @@ async def update_mapping(
             await db.delete(fm)
         await db.flush()
 
-        # Create new
-        for fm_in in body.field_mappings:
-            fm = SnowFieldMapping(
-                mapping_id=mapping.id,
-                turbo_field=fm_in.turbo_field,
-                snow_field=fm_in.snow_field,
-                direction=fm_in.direction,
-                transform_type=fm_in.transform_type,
-                transform_config=fm_in.transform_config,
-                is_identity=fm_in.is_identity,
-            )
-            db.add(fm)
+        # Create new (coerces default values against the target field type)
+        await _persist_field_mappings(db, mapping, body.field_mappings)
 
     await db.commit()
 
@@ -971,3 +1054,42 @@ async def apply_staged_records(
         raise HTTPException(502, "Failed to apply staged records")
 
     return {"ok": True, "applied": applied}
+
+
+# ---------------------------------------------------------------------------
+# Card → ServiceNow record links
+# ---------------------------------------------------------------------------
+
+
+@router.get("/cards/{card_id}/links", response_model=list[SnowLinkOut])
+async def list_card_servicenow_links(
+    card_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Return deep links to the ServiceNow record(s) a card is synced with.
+
+    Derived read-only from the sync identity map — a card may map to more than
+    one ServiceNow record if it is covered by several mappings. The URL is the
+    direct record form on the connection's instance.
+    """
+    await PermissionService.require_permission(db, user, "servicenow.view")
+    result = await db.execute(
+        select(SnowIdentityMap, SnowConnection)
+        .join(SnowConnection, SnowConnection.id == SnowIdentityMap.connection_id)
+        .where(SnowIdentityMap.card_id == card_id)
+        .order_by(SnowIdentityMap.last_synced_at.desc().nullslast())
+    )
+    links: list[SnowLinkOut] = []
+    for entry, conn in result.all():
+        base = (conn.instance_url or "").rstrip("/")
+        links.append(
+            SnowLinkOut(
+                connection_name=conn.name,
+                table=entry.snow_table,
+                sys_id=entry.snow_sys_id,
+                url=f"{base}/{entry.snow_table}.do?sys_id={entry.snow_sys_id}",
+                last_synced_at=entry.last_synced_at.isoformat() if entry.last_synced_at else None,
+            )
+        )
+    return links

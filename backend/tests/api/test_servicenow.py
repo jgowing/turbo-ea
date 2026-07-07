@@ -440,3 +440,214 @@ class TestServiceNowAuth:
             },
         )
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------
+# POST/GET /servicenow/mappings  — field default values
+# ---------------------------------------------------------------
+
+
+class TestMappingDefaultValues:
+    async def test_constant_and_list_default_round_trip(self, client, db, snow_env):
+        """A mapping can carry a hardcoded constant (no snow_field) and a coerced
+        list default, and both survive a create → GET round-trip."""
+        from tests.conftest import create_card_type
+
+        admin = snow_env["admin"]
+        await create_card_type(
+            db,
+            key="ITComponent",
+            label="IT Component",
+            fields_schema=[
+                {"section": "Details", "fields": [{"key": "tags", "type": "multiple_select"}]}
+            ],
+        )
+        conn = await client.post(
+            "/api/v1/servicenow/connections",
+            json={
+                "name": "SNOW",
+                "instance_url": "https://c.service-now.com",
+                "auth_type": "basic",
+                "username": "u",
+                "password": "p",
+            },
+            headers=auth_headers(admin),
+        )
+        conn_id = conn.json()["id"]
+
+        resp = await client.post(
+            "/api/v1/servicenow/mappings",
+            json={
+                "connection_id": conn_id,
+                "card_type_key": "ITComponent",
+                "snow_table": "cmdb_ci_hardware",
+                "field_mappings": [
+                    # Hardcoded constant — no source column.
+                    {"turbo_field": "subtype", "snow_field": "", "default_value": "hardware"},
+                    # List default coerced from a comma-separated string.
+                    {
+                        "turbo_field": "attributes.tags",
+                        "snow_field": "u_tags",
+                        "default_value": "a, b",
+                    },
+                ],
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200, resp.text
+        fms = {fm["turbo_field"]: fm for fm in resp.json()["field_mappings"]}
+        assert fms["subtype"]["snow_field"] == ""
+        assert fms["subtype"]["default_value"] == "hardware"
+        assert fms["attributes.tags"]["default_value"] == ["a", "b"]
+
+    async def test_row_without_source_or_default_is_dropped(self, client, db, snow_env):
+        """A field-mapping row with neither a snow_field nor a default is skipped."""
+        admin = snow_env["admin"]
+        conn = await client.post(
+            "/api/v1/servicenow/connections",
+            json={
+                "name": "SNOW2",
+                "instance_url": "https://d.service-now.com",
+                "auth_type": "basic",
+                "username": "u",
+                "password": "p",
+            },
+            headers=auth_headers(admin),
+        )
+        resp = await client.post(
+            "/api/v1/servicenow/mappings",
+            json={
+                "connection_id": conn.json()["id"],
+                "card_type_key": "Application",
+                "snow_table": "cmdb_ci",
+                "field_mappings": [
+                    {"turbo_field": "name", "snow_field": "name"},
+                    {"turbo_field": "description", "snow_field": "", "default_value": None},
+                ],
+            },
+            headers=auth_headers(admin),
+        )
+        assert resp.status_code == 200, resp.text
+        turbo_fields = [fm["turbo_field"] for fm in resp.json()["field_mappings"]]
+        assert turbo_fields == ["name"]
+
+
+# ---------------------------------------------------------------
+# GET /servicenow/cards/{id}/links  — derived record deep links
+# ---------------------------------------------------------------
+
+
+class TestCardServiceNowLinks:
+    async def test_link_derived_from_identity_map(self, client, db, snow_env):
+        """A synced card exposes a deep link built from its identity map row."""
+        from app.models.servicenow import (
+            SnowConnection,
+            SnowIdentityMap,
+            SnowMapping,
+        )
+        from tests.conftest import create_card
+
+        admin = snow_env["admin"]
+        card = await create_card(db, name="NexaCore ERP")
+        conn = SnowConnection(
+            name="Prod SNOW",
+            instance_url="https://acme.service-now.com/",  # trailing slash on purpose
+            auth_type="basic",
+            credentials={},
+        )
+        db.add(conn)
+        await db.flush()
+        mapping = SnowMapping(
+            connection_id=conn.id, card_type_key="Application", snow_table="cmdb_ci_appl"
+        )
+        db.add(mapping)
+        await db.flush()
+        db.add(
+            SnowIdentityMap(
+                connection_id=conn.id,
+                mapping_id=mapping.id,
+                card_id=card.id,
+                snow_sys_id="abc123",
+                snow_table="cmdb_ci_appl",
+            )
+        )
+        await db.flush()
+
+        resp = await client.get(
+            f"/api/v1/servicenow/cards/{card.id}/links", headers=auth_headers(admin)
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["connection_name"] == "Prod SNOW"
+        assert data[0]["table"] == "cmdb_ci_appl"
+        assert data[0]["sys_id"] == "abc123"
+        # trailing slash collapsed, direct record-form URL
+        assert data[0]["url"] == "https://acme.service-now.com/cmdb_ci_appl.do?sys_id=abc123"
+
+    async def test_no_links_for_unsynced_card(self, client, db, snow_env):
+        """A card that was never synced returns an empty list."""
+        from tests.conftest import create_card
+
+        admin = snow_env["admin"]
+        card = await create_card(db, name="Manual Card")
+        resp = await client.get(
+            f"/api/v1/servicenow/cards/{card.id}/links", headers=auth_headers(admin)
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == []
+
+
+# ---------------------------------------------------------------
+# Default-value coercion helpers (pure, no DB)
+# ---------------------------------------------------------------
+
+
+class TestDefaultValueCoercion:
+    """Unit tests for _field_type_for and _coerce_default_value."""
+
+    _SCHEMA = [
+        {
+            "section": "Details",
+            "fields": [
+                {"key": "environment", "type": "single_select"},
+                {"key": "tags", "type": "multiple_select"},
+                {"key": "monitored", "type": "boolean"},
+                {"key": "cost", "type": "cost"},
+                {"key": "replicas", "type": "number"},
+            ],
+        }
+    ]
+
+    def test_field_type_for_attribute(self):
+        from app.api.v1.servicenow import _field_type_for
+
+        assert _field_type_for(self._SCHEMA, "attributes.tags") == "multiple_select"
+        assert _field_type_for(self._SCHEMA, "attributes.monitored") == "boolean"
+
+    def test_field_type_for_core_and_unknown(self):
+        from app.api.v1.servicenow import _field_type_for
+
+        # Core paths and unknown attribute keys fall back to text.
+        assert _field_type_for(self._SCHEMA, "name") == "text"
+        assert _field_type_for(self._SCHEMA, "attributes.nope") == "text"
+
+    def test_coerce_multiple_select_splits_to_list(self):
+        from app.api.v1.servicenow import _coerce_default_value
+
+        assert _coerce_default_value("a, b ,c", "multiple_select") == ["a", "b", "c"]
+        assert _coerce_default_value(["x", " y "], "multiple_select") == ["x", "y"]
+
+    def test_coerce_boolean_and_numbers(self):
+        from app.api.v1.servicenow import _coerce_default_value
+
+        assert _coerce_default_value("yes", "boolean") is True
+        assert _coerce_default_value("false", "boolean") is False
+        assert _coerce_default_value("42", "number") == 42
+        assert _coerce_default_value("3.5", "cost") == 3.5
+
+    def test_coerce_text_and_none(self):
+        from app.api.v1.servicenow import _coerce_default_value
+
+        assert _coerce_default_value("  hardware ", "single_select") == "hardware"
+        assert _coerce_default_value(None, "text") is None

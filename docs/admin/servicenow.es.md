@@ -231,7 +231,8 @@ Para cada mapeo de campo, configure:
 | Configuración | Descripción |
 |---------------|-------------|
 | **Campo Turbo EA** | Ruta del campo en Turbo EA (autocompletado sugiere opciones según el tipo de ficha) |
-| **Campo SNOW** | Nombre de columna API de ServiceNow (p. ej., `name`, `short_description`) |
+| **Campo SNOW** | Nombre de columna API de ServiceNow (p. ej., `name`, `short_description`). Déjelo en blanco para escribir una constante fija (ver más abajo) |
+| **Valor predeterminado** | Valor que se escribe cuando el campo de ServiceNow está vacío o ausente (ver más abajo) |
 | **Dirección** | Fuente de verdad por campo: SNOW lidera o Turbo lidera |
 | **Transformación** | Cómo convertir valores: Directa, Mapa de Valores, Fecha, Booleano |
 | **Identidad** (casilla ID) | Usado para emparejar registros durante la sincronización inicial |
@@ -244,6 +245,7 @@ El autocompletado agrupa los campos por sección. Aquí está la referencia comp
 |------|---------|------------------|
 | `name` | Nombre visible de la ficha | `"SAP S/4HANA"` |
 | `description` | Descripción de la ficha | `"Sistema ERP principal para finanzas"` |
+| `subtype` | Subtipo de la tarjeta (de la lista de subtipos del tipo de tarjeta) | `"hardware"` |
 | `lifecycle.plan` | Ciclo de vida: Fecha de plan | `"2024-01-15"` |
 | `lifecycle.phaseIn` | Ciclo de vida: Fecha de puesta en marcha | `"2024-03-01"` |
 | `lifecycle.active` | Ciclo de vida: Fecha de activación | `"2024-06-01"` |
@@ -252,6 +254,15 @@ El autocompletado agrupa los campos por sección. Aquí está la referencia comp
 | `attributes.<clave>` | Cualquier atributo personalizado del esquema de campos del tipo de ficha | Varía según el tipo de campo |
 
 Por ejemplo, si su tipo Aplicación tiene un campo con clave `businessCriticality`, seleccione `attributes.businessCriticality` del desplegable.
+
+### Valores predeterminados y constantes
+
+El **valor predeterminado** de un mapeo de campo permite rellenar datos que ServiceNow no proporciona. Se aplica **solo de entrada** (durante un pull) y se comporta de dos maneras según si hay un **campo SNOW** definido:
+
+- **Respaldo** — Con un campo SNOW y un valor predeterminado, este solo se usa cuando el valor de ServiceNow está vacío o ausente. Un valor real de ServiceNow siempre prevalece.
+- **Constante** — Deje el campo SNOW en blanco y defina solo un valor predeterminado para escribir un valor fijo en cada tarjeta sincronizada, independientemente de ServiceNow. Por ejemplo, mapee `subtype` sin campo SNOW con un valor predeterminado de `hardware` para que cada CI extraído se registre como un componente de TI de hardware.
+
+El valor predeterminado se convierte al tipo del campo de destino: los campos `boolean`, `number` y `cost` analizan el valor; **los campos de selección múltiple aceptan una lista separada por comas** (p. ej., `web, backend` se convierte en dos valores). Para combinar varios campos de ServiceNow en un solo campo de Turbo EA, use un [campo calculado](calculations.md) que agregue campos mapeados intermedios: la capa de mapeo asigna una columna a la vez.
 
 ### Campos de Identidad — Cómo funciona el emparejamiento
 
@@ -266,6 +277,11 @@ Marque uno o más campos como **Identidad** (icono de llave). Estos se usan dura
 Después de la primera sincronización que establece los vínculos del mapa de identidad, las sincronizaciones posteriores usan el mapa de identidad persistente y no dependen del emparejamiento por nombre.
 
 ---
+
+### Abrir el registro de ServiceNow
+
+Una vez sincronizada una tarjeta, su pestaña **Recursos** muestra una sección **ServiceNow** con un enlace directo que abre el registro correspondiente (`https://<su-instancia>/<tabla>.do?sys_id=<id>`) en una pestaña nueva. El enlace es de solo lectura y se mantiene automáticamente mediante la sincronización: no hay nada que configurar. Las tarjetas que nunca se sincronizaron no muestran la sección; aún puede añadir un enlace manual en **Enlaces de documentos** en la misma pestaña.
+
 
 ## Paso 5: Ejecutar su Primera Sincronización
 
