@@ -87,6 +87,12 @@ interface Props {
   // Saved into a view's `column_state`; applied back via `onApplyColumnState`.
   columnState?: ColumnLayoutItem[];
   onApplyColumnState?: (state: ColumnLayoutItem[] | null) => void;
+  // The grid's current AG Grid column-filter model (a layer separate from these
+  // sidebar filters) — saved into a view on create/edit.
+  columnFilterModel?: Record<string, unknown>;
+  // Applies a column-filter model to the grid (or clears with null). Invoked on
+  // "Clear all" (null) and when applying a saved view (the view's model).
+  onApplyColumnFilters?: (model: Record<string, unknown> | null) => void;
 }
 
 const APPROVAL_STATUS_OPTIONS = [
@@ -219,6 +225,8 @@ export default function InventoryFilterSidebar({
   onResetColumns,
   columnState,
   onApplyColumnState,
+  columnFilterModel,
+  onApplyColumnFilters,
 }: Props) {
   const { t } = useTranslation(["inventory", "common"]);
   const typeLabel = useTypeLabel();
@@ -432,6 +440,8 @@ export default function InventoryFilterSidebar({
       },
       columns: Array.from(selectedColumns),
       column_state: columnState ?? null,
+      column_filter_model:
+        columnFilterModel && Object.keys(columnFilterModel).length > 0 ? columnFilterModel : null,
       visibility: dialogVisibility,
       odata_enabled: dialogOdata,
       shared_with: sharedWithPayload,
@@ -475,6 +485,11 @@ export default function InventoryFilterSidebar({
       const layout = (bm.column_state as ColumnLayoutItem[] | undefined) ?? null;
       onApplyColumnState(layout && layout.length > 0 ? layout : null);
     }
+    // Restore the view's saved AG Grid column filters (null clears them, which
+    // also covers pre-feature views that never stored a filter model).
+    onApplyColumnFilters?.(
+      (bm.column_filter_model as Record<string, unknown> | undefined) ?? null,
+    );
     // Mark this view active so it stays highlighted (and survives a refresh).
     setActiveViewId(bm.id);
     // Stay on the Views tab so the user can switch between views quickly.
