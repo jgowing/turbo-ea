@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 
 vi.mock("@/api/client", () => ({
+  // `api` is consumed by loadUiExtensions(), which useAuth fires and forgets
+  // after login; without this export the extension host's property access
+  // rejects as an unhandled error and fails the whole vitest run.
+  api: { get: vi.fn().mockResolvedValue([]), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
   auth: {
     login: vi.fn(),
     register: vi.fn(),
@@ -18,6 +22,7 @@ vi.mock("@/api/client", () => ({
 }));
 
 import { auth, setToken, clearToken, setAuthenticated } from "@/api/client";
+import { registerExtension, getRegisteredExtensions } from "@/lib/extensionHost";
 import { useAuth } from "./useAuth";
 
 beforeEach(() => {
@@ -98,6 +103,10 @@ describe("useAuth", () => {
       expect(result.current.user).not.toBeNull();
     });
 
+    // Simulate the previous user's extension having registered a plugin.
+    registerExtension("prev-user-ext", { key: "prev-user-ext", sdkVersion: "1.3" });
+    expect(getRegisteredExtensions()).toHaveLength(1);
+
     await act(async () => {
       await result.current.logout();
     });
@@ -105,6 +114,8 @@ describe("useAuth", () => {
     expect(auth.logout).toHaveBeenCalled();
     expect(clearToken).toHaveBeenCalled();
     expect(result.current.user).toBeNull();
+    // The extension host is reset so the next login re-loads its own bundles.
+    expect(getRegisteredExtensions()).toHaveLength(0);
   });
 
   it("clears auth state when loadUser fails", async () => {

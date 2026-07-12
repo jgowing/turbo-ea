@@ -20,9 +20,14 @@ import MaterialSymbol from "@/components/MaterialSymbol";
 import ColorPicker from "@/components/ColorPicker";
 import KeyInput, { isValidKey } from "@/components/KeyInput";
 import { api } from "@/api/client";
+import { useExtensionCapabilities } from "@/hooks/useExtensionCapabilities";
 import { LOCALE_LABELS } from "@/i18n";
+import { useExtensionFieldTypes, ExtensionBoundary } from "@/lib/extensionHost";
 import type { FieldDef, FieldOption, TranslationMap } from "@/types";
 import { FIELD_TYPE_OPTIONS, DEFAULT_OPTION_COLOR } from "./constants";
+import ConfigEditor from "./ConfigEditor";
+
+const CAP_FIELD_HELP = "metamodel.field_help";
 
 /** Remove empty-string entries from a TranslationMap. Returns undefined if all empty. */
 function cleanTranslationMap(map: TranslationMap | undefined): TranslationMap | undefined {
@@ -54,8 +59,43 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
   const locale = i18n.language;
   const [field, setField] = useState<FieldDef>(initial);
 
+  const caps = useExtensionCapabilities();
+  const helpGranted = caps.has(CAP_FIELD_HELP);
+  const extFieldTypes = useExtensionFieldTypes();
+
+  // Built-in field types plus any contributed by installed extensions.
+  const typeOptions = useMemo(
+    () => [
+      ...FIELD_TYPE_OPTIONS.map((o) => ({ value: o.value, label: t(o.tKey) })),
+      ...Object.values(extFieldTypes).map((rft) => ({
+        value: rft.contribution.type,
+        label: rft.contribution.label,
+      })),
+    ],
+    [extFieldTypes, t],
+  );
+  const customType = extFieldTypes[field.type];
+  const CustomConfigEditor = customType?.contribution.configEditor;
+  // Extension-contributed fields are re-synced from their manifest, so their
+  // config/help are shown read-only ("Managed by <ext>") — edits wouldn't stick.
+  const extOwned = !!initial.ext;
+  const extOwner = initial.ext ?? "";
+  // The config object shown for a custom type, seeded from its defaultConfig
+  // when the field has none yet, e.g. a rating's { min, max }.
+  const configObj = (field.config ??
+    (customType ? customType.contribution.defaultConfig : undefined) ??
+    {}) as Record<string, unknown>;
+  const showConfig = !!customType || Object.keys(configObj).length > 0;
+  const localeLabel = LOCALE_LABELS[locale as keyof typeof LOCALE_LABELS] || locale;
+  // Show the help input when the grant is active, or (read-only) when an
+  // ext-owned field already carries help so it stays visible/discoverable.
+  const showHelp =
+    helpGranted || (extOwned && !!(initial.help || initial.helpTranslations?.[locale]));
+
   // The label input reads/writes translations[currentLocale]
   const [displayLabel, setDisplayLabel] = useState("");
+  // Help text input reads/writes helpTranslations[currentLocale] (gated).
+  const [displayHelp, setDisplayHelp] = useState("");
 
   // Keys that appear on more than one option — flagged red, and block Save.
   // Keys must be unique within a select field's option list.
@@ -85,6 +125,7 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
         options: (initial.options || []).map((o) => ({ ...o, _original: true })),
       });
       setDisplayLabel(initial.translations?.[locale] || initial.label || "");
+      setDisplayHelp(initial.helpTranslations?.[locale] || initial.help || "");
       setDeleteOptConfirm(null);
     }
   }, [open, initial, locale]);
@@ -169,17 +210,50 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
             value={field.type}
             label={t("metamodel.fieldEditor.typeLabel")}
             disabled={!!isCalculated}
-            onChange={(e) =>
-              setField({ ...field, type: e.target.value as FieldDef["type"] })
-            }
+            onChange={(e) => {
+              const newType = e.target.value as FieldDef["type"];
+              const rft = extFieldTypes[newType];
+              // Seed config from the custom type's defaults on first selection.
+              setField({
+                ...field,
+                type: newType,
+                config: rft
+                  ? { ...(rft.contribution.defaultConfig ?? {}), ...(field.config ?? {}) }
+                  : field.config,
+              });
+            }}
           >
-            {FIELD_TYPE_OPTIONS.map((o) => (
+            {typeOptions.map((o) => (
               <MenuItem key={o.value} value={o.value}>
-                {t(o.tKey)}
+                {o.label}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+        {showConfig && (
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              {t("metamodel.fieldEditor.customConfig")}
+            </Typography>
+            {extOwned ? (
+              <>
+                <ConfigEditor config={configObj} onChange={() => {}} readOnly />
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  {t("metamodel.fieldEditor.managedByExtension", { ext: extOwner })}
+                </Typography>
+              </>
+            ) : CustomConfigEditor ? (
+              <ExtensionBoundary extensionKey={customType!.extKey}>
+                <CustomConfigEditor
+                  config={configObj}
+                  onChange={(c) => setField({ ...field, config: c })}
+                />
+              </ExtensionBoundary>
+            ) : (
+              <ConfigEditor config={configObj} onChange={(c) => setField({ ...field, config: c })} />
+            )}
+          </Box>
+        )}
         <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
           <FormControlLabel
             control={
@@ -196,6 +270,24 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
             {t("metamodel.fieldEditor.weightMovedHint")}
           </Typography>
         </Box>
+        {showHelp && (
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            maxRows={6}
+            label={`${t("metamodel.fieldEditor.helpLabel")} (${localeLabel})`}
+            value={displayHelp}
+            disabled={extOwned}
+            onChange={(e) => setDisplayHelp(e.target.value)}
+            helperText={
+              extOwned
+                ? t("metamodel.fieldEditor.managedByExtension", { ext: extOwner })
+                : t("metamodel.fieldEditor.helpHint")
+            }
+            sx={{ mb: 2 }}
+          />
+        )}
         {isSelect && (
           <>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -281,10 +373,17 @@ export default function FieldEditorDialog({ open, field: initial, typeKey, field
           variant="contained"
           onClick={() => {
             const mergedTranslations = { ...field.translations, [locale]: displayLabel };
+            const mergedHelp = { ...field.helpTranslations, [locale]: displayHelp };
+            const cleanedHelp = helpGranted ? cleanTranslationMap(mergedHelp) : field.helpTranslations;
             const cleanedField: FieldDef = {
               ...field,
               label: displayLabel,
               translations: cleanTranslationMap(mergedTranslations),
+              // Extension-owned config/help are read-only in this dialog and
+              // re-synced from the manifest — never rewrite them here.
+              help: extOwned ? initial.help : helpGranted ? displayHelp.trim() || undefined : field.help,
+              helpTranslations: extOwned ? initial.helpTranslations : cleanedHelp,
+              config: extOwned ? initial.config : field.config,
               options: field.options?.map(({ _original, ...o }) => ({
                 ...o,
                 // Persist the default the picker displays so an option whose

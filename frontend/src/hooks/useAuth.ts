@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { auth, setToken, clearToken, setAuthenticated } from "@/api/client";
 import { primeBootstrap, resetBootstrap } from "@/api/bootstrap";
 import { stopEventStream } from "@/hooks/useEventStream";
+import { invalidateExtensionCapabilities } from "@/hooks/useExtensionCapabilities";
+import { resetExtensionHost } from "@/lib/extensionHost";
 import i18n from "@/i18n";
 import type { User } from "@/types";
 
@@ -43,6 +45,9 @@ export function useAuth() {
       // still empty. Bootstrap failures are swallowed inside primeBootstrap()
       // so a transient bootstrap error doesn't block login.
       await primeBootstrap();
+      // Load UI extension bundles in the background (entitlement-filtered
+      // manifest + dynamic import; failures are captured per-extension).
+      void import("@/lib/extensionHost").then((m) => m.loadUiExtensions());
       setUser(u as User);
       i18n.changeLanguage(u.locale || "en");
       startRefreshTimer();
@@ -92,6 +97,12 @@ export function useAuth() {
     stopEventStream();
     stopRefreshTimer();
     resetBootstrap();
+    // Clear per-user extension state so the next login in the same tab
+    // re-fetches its own entitlement-filtered bundles + capabilities rather
+    // than inheriting the previous user's (loadUiExtensions guards on a
+    // module-level _loadStarted flag that resetExtensionHost clears).
+    resetExtensionHost();
+    invalidateExtensionCapabilities();
     setUser(null);
   };
 

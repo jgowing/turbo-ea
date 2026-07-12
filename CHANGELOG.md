@@ -5,6 +5,47 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] - 2026-07-10
+
+### Added
+- **Admin → Extensions: remove a license, and a smoother file install.** The Installed tab now has a **Remove license** action (soft-disables licensed extensions until a license is re-applied — no data is deleted). Installing an unlicensed extension from a file no longer dead-ends with an error pointing at the Installed tab: the license dialog opens inline and the install continues automatically once the license is applied.
+- **Instance-bound extension licensing.** Every installation now mints a unique instance ID (`TEA-XXXX-XXXX-XXXX`, shown on Admin → Extensions with a copy button) that identifies it for licensing: purchases carry it automatically from the in-app Store (and the storefront checkout asks for it), so every extension bought for the instance — by any administrator, under any email — lands in one combined license. Licenses are bound to the ID: one issued for a different instance is refused with a clear message, and a restored/copied database explains itself with a banner instead of silently mis-licensing. The ID identifies only — it is never a credential — and it travels with workspace transfer so host migrations keep licenses working.
+- **Admin → Extensions** gains a page title and icon, an intro covering both install models (one-click Store and offline file upload), and a note that extensions are built and signed by Turbo EA (not self-built or third-party) with a link to consulting for a tailored build. Documented in the admin guide across all languages.
+- **Extensions can extend Architecture Decision Records.** Two new UI extension points (UI SDK 1.3) let a licensed extension render its own panel on the ADR editor and preview pages — e.g. a value-savings form — and contribute extra sections to the ADR DOCX export so that data appears in the exported document. ADRs now also carry an `ext.*` attributes bag that extensions write to; it is frozen automatically once the decision is signed and carried into revisions and duplicates, so figures approved by the signatories stay accurate.
+
+### Security
+- Installed extensions are now verified byte-for-byte at every startup, not just by their manifest signature: each file is re-hashed against the signed manifest and backend code is re-derived from the verified wheels, so tampering with extension code on the data volume is detected and quarantined instead of loaded.
+- The extension license-signing key can no longer be used to sign installable bundles — signing keys are now bound to their artifact type, so a compromised license key cannot forge extension code.
+- Automatic license renewal now sends its credential in the request body rather than the URL (keeping it out of server logs), and an uninitialised instance identity no longer fails open when checking whether a license is bound to this instance.
+
+### Fixed
+- Removing an extension-contributed field from a card type in the metamodel editor no longer deletes the stored values on existing cards — the data is preserved so re-enabling the extension restores it, matching the disable/uninstall behaviour.
+- A failure part-way through installing a content-pack extension can no longer leave card types or cards behind with no governing extension row; the extension is registered before its content is applied.
+- Logging out now clears loaded extensions and their capability grants, so a second user signing in on the same browser tab no longer briefly sees the previous user's extension pages and controls.
+- Newly installing, enabling, or licensing an extension now reflects its capability grants immediately instead of requiring a page reload.
+- Uploading an extension bundle enforces a size limit and rejects bundles with duplicate internal entries.
+
+## [2.1.0] - 2026-07-09
+
+### Added
+- **Surveys render extension field types and field help.** When a survey includes a field that uses an extension-contributed custom field type (e.g. a rating widget) or carries collapsible help text, the respondent now sees the same control and guidance as on the card detail instead of a plain text box. The custom type and its config/help are read from the live metamodel, and a field degrades gracefully to a text input when the extension is absent.
+- **Extensions can ship ready-made draft surveys.** A content pack may include a `Surveys` sheet; each survey lands as a **draft** with its maintain fields pre-selected, so an admin can review the target and send it — an install can never send a survey or email subscribers on its own. The survey builder now flags a selected field whose custom (`ext.*`) type comes from an extension that isn't currently installed and active.
+- **Extensions can add "New from template" survey shortcuts.** A UI plugin may contribute survey templates (UI SDK 1.2) that appear as a **New from template** menu on the Surveys admin page; picking one mints a fresh prefilled **draft** survey and opens it in the builder for the admin to review and send.
+
+### Changed
+- The in-product Extension Store now points at the production catalogue at `store.turbo-ea.org`.
+
+## [2.0.0] - 2026-07-09
+
+Turbo EA 2.0 introduces the **Extension Store** — install vendor-signed extensions to add capabilities without changing the core. A full announcement will follow in the GitHub Discussions.
+
+### Added
+- **Extension Store (Admin → Extensions).** Browse, install, license, and renew vendor-signed extensions — content packs, backend plugins, and UI plugins — delivered as signed files that also work fully offline/air-gapped. Includes an in-product store with one-click install and automatic license renewal for connected instances, plus a `teax` CLI for building and signing bundles.
+- **Extensions can extend the metamodel and UI.** Licensed extensions can add custom field types, collapsible field help text, their own field sections on existing card types (merged additively — admin customisations are never overwritten, and disabling brings the fields down without losing any values), card-detail tabs, admin panels, and their own pages (optionally under the Reports menu) — with signature + license enforcement, a 30-day grace window, and no data ever deleted on lapse.
+
+### Changed
+- The backend now mounts a persistent `backend_data` volume at `/app/data` so installed extensions survive upgrades. Existing Docker installs pick this up from the updated `docker-compose.yml`.
+
 ## [1.69.5] - 2026-07-12
 
 ### Fixed

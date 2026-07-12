@@ -24,6 +24,7 @@
   "admin.metamodel": "Métamodèle",
   "admin.usersAndRoles": "Utilisateurs & Rôles",
   "admin.surveys": "Enquêtes",
+  "admin.extensions": "Extensions",
   "admin.settings": "Paramètres",
   "userMenu.notificationSettings": "Paramètres de notification",
   "userMenu.darkMode": "Mode sombre",
@@ -62,5 +63,7 @@
   "sponsorship.howHeading": "Comment soutenir",
   "sponsorship.howBody": "Via GitHub Sponsors pour l'instant. Choisissez un don unique ou une contribution mensuelle régulière :",
   "sponsorship.oneTime": "Ponctuel",
-  "sponsorship.monthly": "Mensuel"
+  "sponsorship.monthly": "Mensuel",
+  "extensionLicense.banner": "Licence d'extension à renouveler : {{keys}}. Demandez un nouveau fichier de licence et appliquez-le dans Admin → Extensions.",
+  "extensionLicense.manage": "Gérer"
 }

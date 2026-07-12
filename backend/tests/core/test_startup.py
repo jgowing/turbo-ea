@@ -254,3 +254,26 @@ class TestAppVersion:
 
         parts = APP_VERSION.split(".")
         assert len(parts) >= 2  # At least major.minor
+
+
+# ---------------------------------------------------------------------------
+# Extension store URL resolution
+# ---------------------------------------------------------------------------
+
+
+class TestExtensionStoreUrl:
+    def test_store_url_is_a_baked_in_https_constant(self):
+        """The store is part of the product — a constant, not configuration.
+
+        Deliberately NOT env-driven: there is no opt-in/opt-out knob, and
+        repointing it means forking (same posture as the trusted vendor
+        keys). Air-gapped installs degrade to the offline hint.
+        """
+        import inspect
+
+        import app.config as config
+
+        assert config.settings.EXTENSION_STORE_URL.startswith("https://")
+        assert config.settings.EXTENSION_STORE_URL == config.EXTENSION_STORE_URL
+        # Guard the invariant at the source level: no env lookup for it.
+        assert 'os.getenv("EXTENSION_STORE_URL"' not in inspect.getsource(config)

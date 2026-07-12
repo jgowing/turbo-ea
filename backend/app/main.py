@@ -272,6 +272,32 @@ async def _kpi_snapshot_loop() -> None:
             await asyncio.sleep(3600)
 
 
+async def _license_refresh_loop() -> None:
+    """Daily loop that auto-renews the extension license from the store.
+
+    Only acts when the active license carries a store-issued renewal
+    credential and an entitlement is close to expiry; a renewing Stripe
+    subscription then extends the license with no customer action. Silent
+    on air-gapped / offline installs (the fetch just fails debug-quietly),
+    and manually issued licenses are never touched. Runs shortly after
+    boot (catch-up after downtime) and then every 24h.
+    """
+    from app.database import async_session
+    from app.services.extensions.license_refresh import refresh_license_if_due
+
+    delay = 120  # first attempt shortly after boot, then daily
+    while True:
+        try:
+            await asyncio.sleep(delay)
+            delay = 24 * 3600
+            async with async_session() as db:
+                await refresh_license_if_due(db)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Error in extension license refresh loop")
+
+
 async def _promote_recurring_tasks_loop() -> None:
     """Daily background loop that flips eligible ``scheduled`` recurring
     items to ``open`` once their lead-time window opens.
@@ -744,6 +770,17 @@ async def lifespan(app: FastAPI):
             else:
                 print(f"[seed_security] Skipped: {result.get('reason', 'unknown')}")
 
+    # ── Extension Store: mint/load the instance ID (licensing identity —
+    # must exist before the registry evaluates license binding), then
+    # reconcile statuses, load license/registry, run per-extension
+    # migrations, fire on_startup hooks, spawn job loops.
+    from app.services.extensions.instance_id import ensure_instance_id
+    from app.services.extensions.startup import initialize_extensions
+
+    async with async_session() as db:
+        await ensure_instance_id(db)
+    extension_job_tasks = await initialize_extensions(extension_load_report)
+
     # Auto-configure bundled Ollama AI when AI_AUTO_CONFIGURE=true
     ollama_task = None
     if settings.AI_AUTO_CONFIGURE:
@@ -768,6 +805,10 @@ async def lifespan(app: FastAPI):
     # scheduled cycles to open once their lead window opens.
     promote_task = asyncio.create_task(_promote_recurring_tasks_loop())
 
+    # Daily extension-license auto-renewal from the store (no-op for
+    # manually issued licenses and on air-gapped installs).
+    license_refresh_task = asyncio.create_task(_license_refresh_loop())
+
     # One-shot canonical data-quality rescore (guarded by a settings marker;
     # a no-op on every boot after the first successful run).
     dq_rescore_task = asyncio.create_task(_one_shot_data_quality_rescore())
@@ -778,6 +819,13 @@ async def lifespan(app: FastAPI):
     yield
 
     # Cancel background tasks on shutdown
+    for ext_task in extension_job_tasks:
+        ext_task.cancel()
+    for ext_task in extension_job_tasks:
+        try:
+            await ext_task
+        except asyncio.CancelledError:
+            pass
     purge_task.cancel()
     try:
         await purge_task
@@ -796,6 +844,11 @@ async def lifespan(app: FastAPI):
     promote_task.cancel()
     try:
         await promote_task
+    except asyncio.CancelledError:
+        pass
+    license_refresh_task.cancel()
+    try:
+        await license_refresh_task
     except asyncio.CancelledError:
         pass
     ops_access_task.cancel()
@@ -930,6 +983,21 @@ async def capture_request_origin(request, call_next):
 
 
 app.middleware("http")(capture_request_origin)
+
+# ── Extension Store: load vendor-signed extensions BEFORE mounting the API ──
+# Routes are static once the app serves, so extension routers must be mounted
+# here; activation (enabled + license entitlement) is enforced per-request by
+# require_extension. Every installed bundle's signature is re-verified on each
+# boot; a broken extension is quarantined and can never block core startup.
+from app.services.extensions.loader import (  # noqa: E402
+    load_extensions,
+    merge_extension_permissions,
+    mount_extension_routers,
+)
+
+extension_load_report = load_extensions()
+mount_extension_routers(api_router, extension_load_report)
+merge_extension_permissions(extension_load_report)
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 

@@ -38,6 +38,7 @@ import { useAppTitle } from "@/hooks/useAppTitle";
 import { SUPPORTED_LOCALES, LOCALE_LABELS, type SupportedLocale } from "@/i18n";
 import { useEnabledLocales } from "@/hooks/useEnabledLocales";
 import SearchDialog from "@/components/SearchDialog";
+import { getExtensionRoutesForGroup, useExtensionUI } from "@/lib/extensionHost";
 import CreateCardDialog from "@/components/CreateCardDialog";
 import type { BadgeCounts, Card } from "@/types";
 
@@ -91,6 +92,7 @@ const ADMIN_ITEM_DEFS: NavItemDef[] = [
   { labelKey: "admin.metamodel", icon: "settings_suggest", path: "/admin/metamodel", permission: "admin.metamodel" },
   { labelKey: "admin.usersAndRoles", icon: "group", path: "/admin/users", permission: "admin.users" },
   { labelKey: "admin.surveys", icon: "assignment", path: "/admin/surveys", permission: "surveys.manage" },
+  { labelKey: "admin.extensions", icon: "extension", path: "/admin/extensions", permission: "admin.manage_extensions" },
   { labelKey: "admin.settings", icon: "settings", path: "/admin/settings", permission: "admin.settings" },
 ];
 
@@ -119,6 +121,33 @@ export default function AppLayout({ children, user, onLogout }: Props) {
   const { enabledLocales } = useEnabledLocales();
   const { mode, toggleMode } = useThemeMode();
   const appTitle = useAppTitle();
+  const uiExtensions = useExtensionUI();
+
+  // License-attention banner: extension admins see when an installed
+  // extension has entered its grace window or expired, driving the
+  // air-gapped renewal loop (request a new license file by email).
+  const [licenseAttention, setLicenseAttention] = useState<
+    { key: string; entitlement_state: string }[]
+  >([]);
+  const canManageExtensions = !!user.permissions?.["*"] || !!user.permissions?.["admin.manage_extensions"];
+  useEffect(() => {
+    if (!canManageExtensions) return;
+    let cancelled = false;
+    api
+      .get<{ key: string; version: string; entitlement_state: string }[]>("/extensions/status")
+      .then((rows) => {
+        if (cancelled) return;
+        setLicenseAttention(
+          rows.filter((r) => r.entitlement_state === "grace" || r.entitlement_state === "expired"),
+        );
+      })
+      .catch(() => {
+        /* endpoint absent or transient failure — no banner */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canManageExtensions]);
 
   // Permission check helper
   const can = useCallback(
@@ -174,6 +203,46 @@ export default function AppLayout({ children, user, onLogout }: Props) {
       return can(perm);
     };
 
+    // Inject extension routes that requested the Reports group as children of
+    // the Reports menu (desktop dropdown + mobile drawer both read `children`).
+    // Placed before the "saved" entry so they sit with the core reports. Labels
+    // are plain strings from the bundle, so t() falls through to them.
+    const reportExtChildren = getExtensionRoutesForGroup("reports").map(({ route }) => ({
+      labelKey: route.label,
+      icon: route.icon,
+      path: route.path,
+      permission: route.permission,
+    }));
+    if (reportExtChildren.length) {
+      items = items.map((item) => {
+        if (item.labelKey !== "reports") return item;
+        const kids = [...(item.children || [])];
+        const savedIdx = kids.findIndex((c) => c.path === "/reports/saved");
+        kids.splice(savedIdx >= 0 ? savedIdx : kids.length, 0, ...reportExtChildren);
+        return { ...item, children: kids };
+      });
+    }
+
+    // Append pages contributed by installed UI extensions as top-level entries.
+    // Routes that requested a core nav group (e.g. Reports, handled above) are
+    // skipped here; a route with an unrecognised navGroup surfaces nowhere in
+    // the nav (still reachable by URL). Labels are plain strings from the
+    // extension itself, so t() falls through to them.
+    for (const { plugin } of uiExtensions) {
+      for (const route of plugin.routes ?? []) {
+        if (route.navGroup) continue;
+        items = [
+          ...items,
+          {
+            labelKey: route.label,
+            icon: route.icon,
+            path: route.path,
+            permission: route.permission,
+          },
+        ];
+      }
+    }
+
     const resolve = (def: NavItemDef): NavItem => ({
       ...def,
       label: t(def.labelKey),
@@ -183,7 +252,7 @@ export default function AppLayout({ children, user, onLogout }: Props) {
     });
 
     return items.filter((item) => hasPerm(item.permission)).map(resolve);
-  }, [bpmEnabled, ppmEnabled, grcEnabled, turboLensReady, can, t]);
+  }, [bpmEnabled, ppmEnabled, grcEnabled, turboLensReady, uiExtensions, can, t]);
 
   // Resolve admin item labels via i18n and filter based on permissions
   const adminItems = useMemo(() => {
@@ -1046,6 +1115,39 @@ export default function AppLayout({ children, user, onLogout }: Props) {
               }}
             >
               {t("impersonation.stop")}
+            </Button>
+          </Box>
+        )}
+        {licenseAttention.length > 0 && (
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              bgcolor: "warning.main",
+              color: "warning.contrastText",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <MaterialSymbol icon="license" size={18} />
+            <Typography variant="body2">
+              {t("extensionLicense.banner", {
+                defaultValue:
+                  "Extension license attention needed: {{keys}}. Request a renewed license file and apply it under Admin → Extensions.",
+                keys: licenseAttention
+                  .map((r) => `${r.key} (${r.entitlement_state})`)
+                  .join(", "),
+              })}
+            </Typography>
+            <Button
+              size="small"
+              color="inherit"
+              sx={{ ml: "auto" }}
+              onClick={() => navigate("/admin/extensions")}
+            >
+              {t("extensionLicense.manage", { defaultValue: "Manage" })}
             </Button>
           </Box>
         )}

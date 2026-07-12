@@ -37,6 +37,12 @@ import {
 } from "@/features/cards/sections";
 import { useAuthContext } from "@/hooks/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
+import { hasPermission } from "@/components/RequirePermission";
+import {
+  ExtensionBoundary,
+  useExtensionUI,
+  useExtensionFieldVisibilityProviders,
+} from "@/lib/extensionHost";
 import SoAWTab from "@/features/cards/sections/SoAWTab";
 import type {
   Card,
@@ -176,11 +182,38 @@ export default function CardDetailContent({
     sc[key]?.defaultExpanded !== false ? fallback : false;
   const secHidden = (key: string) => !!sc[key]?.hidden;
 
-  // Determine hidden fields based on card subtype
+  // Extensions may hide specific card fields at render time (display-only,
+  // ungated, never deletes stored values). Each registered provider renders as
+  // a headless slot below and reports its own hidden-key set, keyed by its
+  // extension. Stable provider list → each provider's own hooks keep a fixed
+  // order across re-renders.
+  const fieldVisibilityProviders = useExtensionFieldVisibilityProviders();
+  const [extHiddenByKey, setExtHiddenByKey] = useState<Record<string, string[]>>({});
+  const reportHiddenFields = useCallback((extKey: string, keys: string[]) => {
+    setExtHiddenByKey((prev) => {
+      const cur = prev[extKey];
+      if (cur && cur.length === keys.length && cur.every((k, i) => k === keys[i])) {
+        return prev; // no change — avoid needless re-render
+      }
+      return { ...prev, [extKey]: keys };
+    });
+  }, []);
+
+  // Determine hidden fields: subtype hidden_fields ∪ every currently-registered
+  // extension provider's reported keys. Reports from an extension that is no
+  // longer registered are ignored (its slot is gone).
   const hiddenFieldKeys: Set<string> = (() => {
-    if (!card.subtype || !typeConfig?.subtypes) return new Set<string>();
-    const st = typeConfig.subtypes.find((s) => s.key === card.subtype);
-    return new Set(st?.hidden_fields ?? []);
+    const set = new Set<string>();
+    if (card.subtype && typeConfig?.subtypes) {
+      const st = typeConfig.subtypes.find((s) => s.key === card.subtype);
+      for (const k of st?.hidden_fields ?? []) set.add(k);
+    }
+    const active = new Set(fieldVisibilityProviders.map((p) => p.extKey));
+    for (const [extKey, keys] of Object.entries(extHiddenByKey)) {
+      if (!active.has(extKey)) continue;
+      for (const k of keys) set.add(k);
+    }
+    return set;
   })();
 
   const customSections = (typeConfig?.fields_schema || []).filter(
@@ -386,6 +419,17 @@ export default function CardDetailContent({
   // SoAW tab index = 1 when Initiative (no BPM); slots in right after Card.
   const soawTabIdx = isSoaw ? 1 + bpmOffset : -1;
 
+  // Extension-contributed tabs render at the very end of the strip,
+  // filtered by card type (appliesTo) and app-level permission.
+  const uiExtensions = useExtensionUI();
+  const extensionTabs = uiExtensions.flatMap(({ key, plugin }) =>
+    (plugin.cardTabs ?? [])
+      .filter((def) => !def.appliesTo || def.appliesTo.includes(card.type))
+      .filter((def) => !def.permission || hasPermission(user?.permissions, def.permission))
+      .map((def) => ({ extKey: key, def })),
+  );
+  const extensionTabBase = historyIdx + 1 + (isPpm ? 1 : 0);
+
   const { hasUpdates, noteVisit } = useCardTabActivity(card.id, user?.id);
 
   const tabKeyForIndex = (idx: number): string | null => {
@@ -434,6 +478,15 @@ export default function CardDetailContent({
 
   return (
     <>
+      {/* Headless extension field-visibility providers (render null). Stable
+          list + stable key per extension so each provider's hooks keep order.
+          Each runs inside ExtensionBoundary so a crash can't blank the card. */}
+      {fieldVisibilityProviders.map(({ extKey, provider: Provider }) => (
+        <ExtensionBoundary key={`fv-${extKey}`} extensionKey={extKey}>
+          <Provider card={card} report={reportHiddenFields} />
+        </ExtensionBoundary>
+      ))}
+
       {beforeTabs}
 
       <Tabs
@@ -464,6 +517,9 @@ export default function CardDetailContent({
         )}
         <Tab label={renderTabLabel("history", t("tabs.history"))} />
         {isPpm && <Tab label={renderTabLabel("ppm", t("tabs.ppm"))} />}
+        {extensionTabs.map(({ extKey, def }) => (
+          <Tab key={`ext:${extKey}:${def.id}`} label={def.label} />
+        ))}
       </Tabs>
 
       {tab === 0 && (
@@ -586,6 +642,17 @@ export default function CardDetailContent({
             </CardContent>
           </MuiCard>
         </ErrorBoundary>
+      )}
+      {extensionTabs.map(({ extKey, def }, i) =>
+        tab === extensionTabBase + i ? (
+          <ExtensionBoundary key={`ext:${extKey}:${def.id}`} extensionKey={extKey}>
+            <MuiCard>
+              <CardContent>
+                <def.component cardId={card.id} cardType={card.type} />
+              </CardContent>
+            </MuiCard>
+          </ExtensionBoundary>
+        ) : null,
       )}
     </>
   );

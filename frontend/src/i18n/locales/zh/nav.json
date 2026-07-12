@@ -24,6 +24,7 @@
   "admin.metamodel": "元模型",
   "admin.usersAndRoles": "用户与角色",
   "admin.surveys": "调查",
+  "admin.extensions": "扩展",
   "admin.settings": "设置",
   "userMenu.notificationSettings": "通知设置",
   "userMenu.darkMode": "深色模式",
@@ -62,5 +63,7 @@
   "sponsorship.howHeading": "如何赞助",
   "sponsorship.howBody": "目前通过 GitHub Sponsors。可选择一次性捐赠或定期的每月贡献：",
   "sponsorship.oneTime": "一次性",
-  "sponsorship.monthly": "每月"
+  "sponsorship.monthly": "每月",
+  "extensionLicense.banner": "扩展许可证需要处理：{{keys}}。请索取续期的许可证文件，并在「管理 → 扩展」中应用。",
+  "extensionLicense.manage": "管理"
 }
