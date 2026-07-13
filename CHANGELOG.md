@@ -5,6 +5,15 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.11.0] - 2026-07-13
+
+### Added
+- **Matrix Report: hide unrelated cards.** A new toggle removes rows and columns for cards that have no relationships, keeping only the cards that participate in at least one relationship — useful for trimming large, sparse matrices down to what matters. The full view showing every card remains the default, and the setting is saved with the report configuration.
+
+### Fixed
+- **Matrix Report: translucent frozen first column.** The sticky row-header column (and other frozen header/total cells) were semi-transparent, so the grid showed through them while scrolling. Their backgrounds are now opaque in both light and dark themes.
+- **Matrix Report: sort dropdowns showed raw keys.** The "Sort Rows" / "Sort Columns" options displayed their translation keys (e.g. `matrix.sortAlpha`) instead of the labels (A → Z, By count, Hierarchy) due to a key mismatch. They now show the translated labels in every locale.
+
 ## [2.8.1] - 2026-07-13
 
 ### Fixed
