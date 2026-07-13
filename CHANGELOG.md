@@ -5,6 +5,17 @@ All notable changes to Turbo EA are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.6.0] - 2026-07-13
+
+### Added
+- **Decisions grid: column chooser.** The filter sidebar on GRC → Governance → Decisions now has a Columns tab (like the Inventory grid) to choose which grid columns are visible — including extension-contributed columns. Reference and Title are always shown; the selection is remembered per browser.
+- **Decisions grid: per-column filters.** Every column offers a header filter — text filters on text columns, date filters on Created / Last Modified / Signed — each with its own Reset button, and a "Clear column filters" toolbar button appears whenever any column filter is active (same behaviour as the Inventory grid). Active filters, column order, width, and sorting are remembered per browser.
+- **Decisions grid: Status column.** Decision status is now a regular, filterable grid column (coloured chip) in addition to the status dot on the Reference column.
+
+### Fixed
+- "Signed by" pills in the decisions grid are no longer cut off at the cell edge — they now wrap onto extra lines, like the Linked Cards column.
+- Demo ADR and SoAW signatories now carry distinct per-persona ids instead of a shared placeholder, so the decisions grid's Signed By filter lists each demo signatory separately (and the signer chips no longer share React keys). Demo ADRs also credit the admin user as creator when one exists at seed time, matching the SoAW behaviour.
+
 ## [2.5.0] - 2026-07-13
 
 ### Added
